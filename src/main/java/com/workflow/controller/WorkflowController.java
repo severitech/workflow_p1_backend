@@ -24,7 +24,7 @@ public class WorkflowController {
     public ResponseEntity<Tramite> iniciar(@Valid @RequestBody IniciarTramiteRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 workflowService.iniciarTramite(req.getPoliticaId(), req.getClienteId(),
-                        req.getRecepcionistaId(), req.getEmpresaId()));
+                        req.getRecepcionistaId(), req.getEmpresaId(), req.getPrioridad()));
     }
 
     @PatchMapping("/{tramiteId}/avanzar")
@@ -42,6 +42,11 @@ public class WorkflowController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/{tramiteId}")
+    public ResponseEntity<Tramite> obtener(@PathVariable String tramiteId) {
+        return ResponseEntity.ok(workflowService.obtener(tramiteId));
+    }
+
     @GetMapping("/empresa/{empresaId}/activos")
     public ResponseEntity<List<Tramite>> activos(@PathVariable String empresaId) {
         return ResponseEntity.ok(workflowService.obtenerActivos(empresaId));
@@ -57,8 +62,9 @@ public class WorkflowController {
         return ResponseEntity.ok(workflowService.obtenerMisTramites(usuarioId));
     }
 
-    @PatchMapping("/{tramiteId}/semaforo/recalcular")
-    public ResponseEntity<Tramite> recalcularSemaforo(@PathVariable String tramiteId) {
-        return ResponseEntity.ok(workflowService.recalcularSemaforo(tramiteId));
+    @PatchMapping("/{tramiteId}/prioridad/{prioridad}")
+    public ResponseEntity<Tramite> cambiarPrioridad(@PathVariable String tramiteId,
+                                                     @PathVariable String prioridad) {
+        return ResponseEntity.ok(workflowService.cambiarPrioridad(tramiteId, prioridad));
     }
 }

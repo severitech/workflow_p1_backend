@@ -7,7 +7,6 @@ import com.workflow.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -24,9 +23,10 @@ public class WorkflowService {
     private final BitacoraRepository bitacoraRepository;
     private final NotificacionRepository notificacionRepository;
     private final SimpMessagingTemplate mensajeria;
+    private final UsuarioRepository usuarioRepository;
 
-    /** Crea un nuevo trámite a partir de una política, cliente y recepcionista */
-    public Tramite iniciarTramite(String politicaId, String clienteId, String recepcionistaId, String empresaId) {
+    /** Crea un nuevo trámite a partir de una política, cliente, recepcionista y prioridad */
+    public Tramite iniciarTramite(String politicaId, String clienteId, String recepcionistaId, String empresaId, String prioridad) {
         PoliticaNegocio politica = politicaRepository.findById(politicaId)
                 .orElseThrow(() -> new WorkflowException("Política no encontrada: " + politicaId));
 
@@ -47,7 +47,7 @@ public class WorkflowService {
                 .recepcionistaId(recepcionistaId)
                 .empresaId(empresaId)
                 .estado("proceso")
-                .semaforo("verde")
+                .prioridad(prioridad != null ? prioridad : "normal")
                 .actividades(new ArrayList<>(List.of(primeraActividad)))
                 .fecha(LocalDateTime.now())
                 .build();
@@ -109,9 +109,12 @@ public class WorkflowService {
         if (siguienteFlujo != null) {
             Actividad nuevaActividad = crearActividad(siguienteFlujo, "activo");
             tramite.getActividades().add(nuevaActividad);
-            // Notificar al responsable de la siguiente actividad
-            enviarNotificacion(siguienteFlujo.getDepartamentoId(), tramiteId, "ASIGNACION",
-                    "Se te asignó una nueva actividad en el trámite " + tramiteId);
+            // Notificar a todos los usuarios del departamento responsable
+            if (siguienteFlujo.getDepartamentoId() != null) {
+                usuarioRepository.findByDepartamentoId(siguienteFlujo.getDepartamentoId())
+                        .forEach(u -> enviarNotificacion(u.getId(), tramiteId, "ASIGNACION",
+                                "Se asignó una nueva actividad en el trámite " + tramiteId));
+            }
         } else {
             tramite.setEstado("completado");
             tramite.setFechaFin(LocalDateTime.now());
@@ -131,14 +134,20 @@ public class WorkflowService {
         List<Flujo> hijos = flujoRepository.findByFlujoPadreId(flujoActualId);
 
         if (!hijos.isEmpty()) {
+            Flujo incondicional = null;
             for (Flujo hijo : hijos) {
                 if (hijo.getCondicionCampo() != null && hijo.getCondicionValor() != null) {
+                    // Hijo condicional: evalúa si los datosForm coinciden
                     boolean coincide = datosForm.stream().anyMatch(d ->
                             hijo.getCondicionCampo().equalsIgnoreCase(d.getEtiqueta()) &&
                             hijo.getCondicionValor().equalsIgnoreCase(d.getValor()));
                     if (coincide) return hijo;
+                } else if (incondicional == null) {
+                    // Hijo sin condición = camino por defecto si ninguno condicional coincide
+                    incondicional = hijo;
                 }
             }
+            if (incondicional != null) return incondicional;
         }
 
         // Sin hijos o sin coincidencia → siguiente flujo raíz por orden
@@ -220,36 +229,19 @@ public class WorkflowService {
         registrarBitacora(tramiteId, usuarioId, "OBSERVACION", descripcion, null, estado);
     }
 
-    /** Recalcula semáforos de todos los trámites activos de una empresa y emite por WebSocket si cambió */
-    @Scheduled(fixedDelay = 300000)
-    public void recalcularSemaforosTodos() {
-        List<Tramite> activos = tramiteRepository.findByEmpresaIdAndEstadoIn(
-                null, List.of("proceso", "urgente"));
-        // Sin empresaId específico: recalcular todos los activos
-        List<Tramite> todos = tramiteRepository.findAll().stream()
-                .filter(t -> List.of("proceso", "urgente").contains(t.getEstado()))
-                .toList();
-
-        for (Tramite tramite : todos) {
-            String semaforoAnterior = tramite.getSemaforo();
-            String nuevoSemaforo = tramite.calcularSemaforo();
-            if (!nuevoSemaforo.equals(semaforoAnterior)) {
-                tramite.setSemaforo(nuevoSemaforo);
-                if ("rojo".equals(nuevoSemaforo)) tramite.setEstado("urgente");
-                tramiteRepository.save(tramite);
-                emitirEstadoTramite(tramite);
-                emitirPanelEmpresa(tramite.getEmpresaId());
-                enviarNotificacion(tramite.getRecepcionistaId(), tramite.getId(),
-                        "SEMAFORO", "El trámite cambió a semáforo " + nuevoSemaforo);
-            }
-        }
+    /** Cambia la prioridad de un trámite y emite actualización por WebSocket */
+    public Tramite cambiarPrioridad(String tramiteId, String prioridad) {
+        Tramite tramite = obtenerTramite(tramiteId);
+        tramite.setPrioridad(prioridad);
+        tramite = tramiteRepository.save(tramite);
+        emitirEstadoTramite(tramite);
+        emitirPanelEmpresa(tramite.getEmpresaId());
+        return tramite;
     }
 
-    /** Recalcula semáforo de un trámite específico */
-    public Tramite recalcularSemaforo(String tramiteId) {
-        Tramite tramite = obtenerTramite(tramiteId);
-        tramite.setSemaforo(tramite.calcularSemaforo());
-        return tramiteRepository.save(tramite);
+    /** Retorna un trámite por su ID */
+    public Tramite obtener(String tramiteId) {
+        return obtenerTramite(tramiteId);
     }
 
     /** Retorna trámites activos de una empresa */
@@ -257,9 +249,9 @@ public class WorkflowService {
         return tramiteRepository.findByEmpresaIdAndEstadoIn(empresaId, List.of("proceso", "urgente", "pendiente"));
     }
 
-    /** Retorna trámites urgentes (semáforo rojo) de una empresa */
+    /** Retorna trámites con prioridad urgente de una empresa */
     public List<Tramite> obtenerUrgentes(String empresaId) {
-        return tramiteRepository.findByEmpresaIdAndSemaforo(empresaId, "rojo");
+        return tramiteRepository.findByEmpresaIdAndPrioridad(empresaId, "urgente");
     }
 
     /** Retorna trámites donde el usuario es cliente o recepcionista */
@@ -270,6 +262,18 @@ public class WorkflowService {
         List<Tramite> todos = new ArrayList<>();
         for (Tramite t : comoCliente) { if (ids.add(t.getId())) todos.add(t); }
         for (Tramite t : comoRecepcionista) { if (ids.add(t.getId())) todos.add(t); }
+
+        // Incluir tramites donde hay una actividad activa asignada al departamento del usuario
+        usuarioRepository.findById(usuarioId).ifPresent(usuario -> {
+            if (usuario.getDepartamentoId() != null) {
+                tramiteRepository.findAll().stream()
+                    .filter(t -> t.getActividades() != null && t.getActividades().stream()
+                        .anyMatch(a -> "activo".equals(a.getEstado()) &&
+                                usuario.getDepartamentoId().equals(a.getDepartamentoId())))
+                    .forEach(t -> { if (ids.add(t.getId())) todos.add(t); });
+            }
+        });
+
         return todos;
     }
 
@@ -285,10 +289,8 @@ public class WorkflowService {
                 .id(UUID.randomUUID().toString())
                 .flujoId(flujo.getId())
                 .departamentoId(flujo.getDepartamentoId())
-                .nombre(flujo.getNombre())
+                .nombre(flujo.getFormularioId())
                 .estado(estado)
-                .tiempoLimite(flujo.getTiempoLimiteHoras())
-                .semaforo("verde")
                 .fechaInicio("activo".equals(estado) ? LocalDateTime.now() : null)
                 .datosForm(DatosClienteForm.builder()
                         .formularioId(flujo.getFormularioId())
@@ -313,7 +315,7 @@ public class WorkflowService {
         EstadoTramiteResponse respuesta = EstadoTramiteResponse.builder()
                 .id(tramite.getId())
                 .estado(tramite.getEstado())
-                .semaforo(tramite.getSemaforo())
+                .prioridad(tramite.getPrioridad())
                 .pasoActual((int) tramite.getActividades().stream().filter(a -> !"espera".equals(a.getEstado())).count())
                 .actividadActualId(actividadActiva != null ? actividadActiva.getId() : null)
                 .actividadActualNombre(actividadActiva != null ? actividadActiva.getNombre() : null)

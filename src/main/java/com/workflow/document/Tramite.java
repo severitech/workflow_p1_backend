@@ -8,7 +8,6 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,7 +18,7 @@ import java.util.List;
 @Document(collection = "tramites")
 @CompoundIndexes({
     @CompoundIndex(name = "empresa_estado", def = "{'empresaId': 1, 'estado': 1}"),
-    @CompoundIndex(name = "recepcionista_semaforo", def = "{'recepcionistaId': 1, 'semaforo': 1}")
+    @CompoundIndex(name = "recepcionista_prioridad", def = "{'recepcionistaId': 1, 'prioridad': 1}")
 })
 public class Tramite {
 
@@ -41,9 +40,9 @@ public class Tramite {
     @Indexed
     private String estado;
 
-    /** Valores: verde, amarillo, rojo */
+    /** Valores: normal, urgente */
     @Indexed
-    private String semaforo;
+    private String prioridad;
 
     /** Actividades embebidas — siempre se leen con el trámite */
     @Builder.Default
@@ -58,24 +57,4 @@ public class Tramite {
     @LastModifiedDate
     private LocalDateTime fechaModificacion;
 
-    /** Calcula el semáforo según el tiempo transcurrido vs tiempo límite de la actividad activa */
-    public String calcularSemaforo() {
-        Actividad actividadActiva = actividades.stream()
-                .filter(a -> "activo".equals(a.getEstado()))
-                .findFirst()
-                .orElse(null);
-
-        if (actividadActiva == null || actividadActiva.getFechaInicio() == null) {
-            return "verde";
-        }
-
-        long horasTranscurridas = ChronoUnit.HOURS.between(actividadActiva.getFechaInicio(), LocalDateTime.now());
-        int tiempoLimite = actividadActiva.getTiempoLimite();
-
-        if (tiempoLimite <= 0) return "verde";
-
-        if (horasTranscurridas >= tiempoLimite) return "rojo";
-        if (horasTranscurridas >= tiempoLimite * 0.75) return "amarillo";
-        return "verde";
-    }
 }

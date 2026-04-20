@@ -22,11 +22,6 @@ public class Actividad {
     /** Valores: espera, activo, completado, rechazado */
     private String estado;
 
-    private int tiempoLimite;
-
-    /** Valores: verde, amarillo, rojo */
-    private String semaforo;
-
     private LocalDateTime fechaInicio;
     private LocalDateTime fechaFin;
     private String observacion;

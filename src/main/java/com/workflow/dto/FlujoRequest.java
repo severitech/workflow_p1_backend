@@ -9,9 +9,6 @@ import lombok.*;
 @AllArgsConstructor
 public class FlujoRequest {
 
-    @NotBlank(message = "El nombre es obligatorio")
-    private String nombre;
-
     @NotBlank(message = "El politicaId es obligatorio")
     private String politicaId;
 
@@ -22,5 +19,6 @@ public class FlujoRequest {
     private String condicionCampo;
     private String condicionValor;
     private String departamentoId;
-    private int tiempoLimiteHoras;
+    private Double posicionX;
+    private Double posicionY;
 }

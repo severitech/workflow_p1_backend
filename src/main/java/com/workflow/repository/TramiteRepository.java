@@ -13,8 +13,8 @@ public interface TramiteRepository extends MongoRepository<Tramite, String> {
 
     List<Tramite> findByEmpresaId(String empresaId);
 
-    /** Trámites urgentes por empresa (semáforo rojo) */
-    List<Tramite> findByEmpresaIdAndSemaforo(String empresaId, String semaforo);
+    /** Trámites urgentes por empresa */
+    List<Tramite> findByEmpresaIdAndPrioridad(String empresaId, String prioridad);
 
     List<Tramite> findByClienteId(String clienteId);
 

@@ -20,4 +20,7 @@ public class IniciarTramiteRequest {
 
     @NotBlank(message = "El empresaId es obligatorio")
     private String empresaId;
+
+    /** Valores: normal, urgente */
+    private String prioridad;
 }

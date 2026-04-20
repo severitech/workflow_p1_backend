@@ -11,7 +11,7 @@ public class EstadoTramiteResponse {
 
     private String id;
     private String estado;
-    private String semaforo;
+    private String prioridad;
     private int pasoActual;
     private String actividadActualId;
     private String actividadActualNombre;

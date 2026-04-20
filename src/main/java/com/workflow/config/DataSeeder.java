@@ -220,35 +220,35 @@ public class DataSeeder implements CommandLineRunner {
         // ── Flujos ────────────────────────────────────────────
         flujoRepository.saveAll(List.of(
                 // Medidor — 3 pasos secuenciales
-                flu(FLU_REC,     "Recepción",          POL_MEDIDOR, FORM_MEDIDOR,  1, true, null,       null,               null,       DEP_REC, 8),
-                flu(FLU_TEC,     "Evaluación técnica", POL_MEDIDOR, FORM_EVAL,     2, true, null,       null,               null,       DEP_TEC, 24),
-                flu(FLU_CIERREM, "Cierre",             POL_MEDIDOR, FORM_CIERRE,   3, true, null,       null,               null,       DEP_REC, 4),
+                flu(FLU_REC,     POL_MEDIDOR, FORM_MEDIDOR,  1, true, null,       null,               null,       DEP_REC),
+                flu(FLU_TEC,     POL_MEDIDOR, FORM_EVAL,     2, true, null,       null,               null,       DEP_TEC),
+                flu(FLU_CIERREM, POL_MEDIDOR, FORM_CIERRE,   3, true, null,       null,               null,       DEP_REC),
                 // Crédito — raíces
-                flu(FLU_DATOS,   "Datos del cliente",  POL_CREDITO, FORM_DATOS,    1, true, null,       null,               null,       DEP_REC, 8),
-                flu(FLU_TIPO_CR, "Tipo de crédito",    POL_CREDITO, FORM_CREDITO,  2, true, null,       null,               null,       DEP_REC, 8),
+                flu(FLU_DATOS,   POL_CREDITO, FORM_DATOS,    1, true, null,       null,               null,       DEP_REC),
+                flu(FLU_TIPO_CR, POL_CREDITO, FORM_CREDITO,  2, true, null,       null,               null,       DEP_REC),
                 // Hijos condicionales
-                flu(FLU_VIVIEN,  "Crédito vivienda",   POL_CREDITO, FORM_EVAL,     3, true, FLU_TIPO_CR,"Tipo de crédito",  "vivienda", DEP_ADM, 48),
-                flu(FLU_EMPRESA, "Crédito empresa",    POL_CREDITO, FORM_EVAL,     3, true, FLU_TIPO_CR,"Tipo de crédito",  "empresa",  DEP_ADM, 72),
-                flu(FLU_VEHIC,   "Crédito vehículo",   POL_CREDITO, FORM_EVAL,     3, true, FLU_TIPO_CR,"Tipo de crédito",  "vehiculo", DEP_TEC, 24),
-                flu(FLU_CIERREC, "Cierre crédito",     POL_CREDITO, FORM_CIERRE,   4, true, null,       null,               null,       DEP_REC, 4)
+                flu(FLU_VIVIEN,  POL_CREDITO, FORM_EVAL,     3, true, FLU_TIPO_CR,"Tipo de crédito",  "vivienda", DEP_ADM),
+                flu(FLU_EMPRESA, POL_CREDITO, FORM_EVAL,     3, true, FLU_TIPO_CR,"Tipo de crédito",  "empresa",  DEP_ADM),
+                flu(FLU_VEHIC,   POL_CREDITO, FORM_EVAL,     3, true, FLU_TIPO_CR,"Tipo de crédito",  "vehiculo", DEP_TEC),
+                flu(FLU_CIERREC, POL_CREDITO, FORM_CIERRE,   4, true, null,       null,               null,       DEP_REC)
         ));
         log.info("[DataSeeder] Flujos creados (incluye 3 flujos condicionales)");
 
         // ── Trámites ──────────────────────────────────────────
         tramiteRepository.saveAll(List.of(
 
-            // TRA-001: Roberto — medidor — EN PROCESO (evaluación activa, semáforo amarillo)
+            // TRA-001: Roberto — medidor — EN PROCESO
             Tramite.builder().id(TRA1).politicaId(POL_MEDIDOR)
                 .clienteId(USR_ROBERTO).recepcionistaId(USR_MARIA).empresaId(EMP1)
-                .estado("proceso").semaforo("amarillo").fecha(h24)
+                .estado("proceso").prioridad("normal").fecha(h24)
                 .actividades(List.of(
-                    act("act_001", FLU_REC, USR_MARIA, DEP_REC, "Recepción", "completado", 8, "verde", h24, h12,
+                    act("act_001", FLU_REC, USR_MARIA, DEP_REC, "Recepción", "completado", h24, h12,
                         "Documentos recibidos correctamente",
                         datosForm(FORM_MEDIDOR, "completado", h12, List.of(
                             dato(CMP_MEDIDOR, "Número de medidor actual", "MED-78432"),
                             dato(CMP_UBIC, "Ubicación exacta del domicilio", "Equipetrol, Calle 3 Este #456")
                         ), List.of())),
-                    act("act_002", FLU_TEC, USR_CARLOS, DEP_TEC, "Evaluación técnica", "activo", 24, "amarillo", h12, null,
+                    act("act_002", FLU_TEC, USR_CARLOS, DEP_TEC, "Evaluación técnica", "activo", h12, null,
                         null,
                         datosForm(FORM_EVAL, "en_proceso", h6, List.of(
                             dato(CMP_OBS, "Observaciones", "Instalación requiere cable de 10mm")
@@ -258,51 +258,51 @@ public class DataSeeder implements CommandLineRunner {
             // TRA-002: Luisa — medidor — COMPLETADO
             Tramite.builder().id(TRA2).politicaId(POL_MEDIDOR)
                 .clienteId(USR_LUISA).recepcionistaId(USR_MARIA).empresaId(EMP1)
-                .estado("completado").semaforo("verde").fecha(h48).fechaFin(h12)
+                .estado("completado").prioridad("normal").fecha(h48).fechaFin(h12)
                 .actividades(List.of(
-                    act("act_003", FLU_REC, USR_MARIA, DEP_REC, "Recepción", "completado", 8, "verde", h48, h48,
+                    act("act_003", FLU_REC, USR_MARIA, DEP_REC, "Recepción", "completado", h48, h48,
                         "Datos completos",
                         datosForm(FORM_MEDIDOR, "completado", h48, List.of(
                             dato(CMP_MEDIDOR, "Número de medidor actual", "MED-11111"),
                             dato(CMP_UBIC, "Ubicación exacta del domicilio", "Urbarí, Calle Las Palmas #123")
                         ), List.of())),
-                    act("act_004", FLU_TEC, USR_CARLOS, DEP_TEC, "Evaluación técnica", "completado", 24, "verde", h48, h24,
+                    act("act_004", FLU_TEC, USR_CARLOS, DEP_TEC, "Evaluación técnica", "completado", h48, h24,
                         "Instalación viable",
                         datosForm(FORM_EVAL, "completado", h24, List.of(
                             dato(CMP_OBS,      "Observaciones", "Sin observaciones, instalación estándar"),
                             dato(CMP_APROBADO, "Aprobado",      "true")
                         ), List.of())),
-                    act("act_005", FLU_CIERREM, USR_MARIA, DEP_REC, "Cierre", "completado", 4, "verde", h24, h12,
+                    act("act_005", FLU_CIERREM, USR_MARIA, DEP_REC, "Cierre", "completado", h24, h12,
                         "Trámite cerrado correctamente",
                         datosForm(FORM_CIERRE, "completado", h12, List.of(
                             dato(CMP_DOC, "Documento de cierre", "acta_cierre_tra002.pdf")
                         ), List.of()))
                 )).build(),
 
-            // TRA-003: Pedro — medidor — URGENTE (semáforo rojo, sin completar en 48h)
+            // TRA-003: Pedro — medidor — URGENTE
             Tramite.builder().id(TRA3).politicaId(POL_MEDIDOR)
                 .clienteId(USR_PEDRO).recepcionistaId(USR_MARIA).empresaId(EMP1)
-                .estado("urgente").semaforo("rojo").fecha(h48)
+                .estado("urgente").prioridad("urgente").fecha(h48)
                 .actividades(List.of(
-                    act("act_006", FLU_REC, USR_MARIA, DEP_REC, "Recepción", "completado", 8, "verde", h48, h48,
+                    act("act_006", FLU_REC, USR_MARIA, DEP_REC, "Recepción", "completado", h48, h48,
                         null,
                         datosForm(FORM_MEDIDOR, "completado", h48, List.of(
                             dato(CMP_MEDIDOR, "Número de medidor actual", "MED-99999"),
                             dato(CMP_UBIC, "Ubicación exacta del domicilio", "Plan Tres Mil, Av. Principal #789")
                         ), List.of())),
-                    act("act_007", FLU_TEC, USR_CARLOS, DEP_TEC, "Evaluación técnica", "activo", 24, "rojo", h48, null,
+                    act("act_007", FLU_TEC, USR_CARLOS, DEP_TEC, "Evaluación técnica", "activo", h48, null,
                         null,
                         datosForm(FORM_EVAL, "en_proceso", h48, List.of(), List.of(
                             obs(USR_MARIA, "Por favor priorizar este trámite", "observado", h6)
                         )))
                 )).build(),
 
-            // TRA-004: Roberto — crédito — EN PROCESO (en paso tipo crédito)
+            // TRA-004: Roberto — crédito — EN PROCESO
             Tramite.builder().id(TRA4).politicaId(POL_CREDITO)
                 .clienteId(USR_ROBERTO).recepcionistaId(USR_MARIA).empresaId(EMP1)
-                .estado("proceso").semaforo("verde").fecha(h6)
+                .estado("proceso").prioridad("normal").fecha(h6)
                 .actividades(List.of(
-                    act("act_008", FLU_DATOS, USR_MARIA, DEP_REC, "Datos del cliente", "completado", 8, "verde", h6, h2,
+                    act("act_008", FLU_DATOS, USR_MARIA, DEP_REC, "Datos del cliente", "completado", h6, h2,
                         null,
                         datosForm(FORM_DATOS, "completado", h2, List.of(
                             dato(CMP_NOMBRE, "Nombre completo",     "Roberto Flores Suárez"),
@@ -310,7 +310,7 @@ public class DataSeeder implements CommandLineRunner {
                             dato(CMP_TEL,    "Teléfono",            "76543210"),
                             dato(CMP_DIR,    "Dirección",           "Av. Brasil #1200, Santa Cruz")
                         ), List.of())),
-                    act("act_009", FLU_TIPO_CR, USR_MARIA, DEP_REC, "Tipo de crédito", "activo", 8, "verde", h2, null,
+                    act("act_009", FLU_TIPO_CR, USR_MARIA, DEP_REC, "Tipo de crédito", "activo", h2, null,
                         null,
                         datosForm(FORM_CREDITO, "en_proceso", h2, List.of(), List.of()))
                 )).build(),
@@ -318,9 +318,9 @@ public class DataSeeder implements CommandLineRunner {
             // TRA-005: Luisa — crédito — flujo condicional "vivienda" activado
             Tramite.builder().id(TRA5).politicaId(POL_CREDITO)
                 .clienteId(USR_LUISA).recepcionistaId(USR_MARIA).empresaId(EMP1)
-                .estado("proceso").semaforo("verde").fecha(h24)
+                .estado("proceso").prioridad("normal").fecha(h24)
                 .actividades(List.of(
-                    act("act_010", FLU_DATOS, USR_MARIA, DEP_REC, "Datos del cliente", "completado", 8, "verde", h24, h12,
+                    act("act_010", FLU_DATOS, USR_MARIA, DEP_REC, "Datos del cliente", "completado", h24, h12,
                         null,
                         datosForm(FORM_DATOS, "completado", h12, List.of(
                             dato(CMP_NOMBRE, "Nombre completo",     "Luisa Méndez Torres"),
@@ -328,14 +328,14 @@ public class DataSeeder implements CommandLineRunner {
                             dato(CMP_TEL,    "Teléfono",            "71234567"),
                             dato(CMP_DIR,    "Dirección",           "Barrio Hamacas, Calle 5 #200")
                         ), List.of())),
-                    act("act_011", FLU_TIPO_CR, USR_MARIA, DEP_REC, "Tipo de crédito", "completado", 8, "verde", h12, h6,
+                    act("act_011", FLU_TIPO_CR, USR_MARIA, DEP_REC, "Tipo de crédito", "completado", h12, h6,
                         null,
                         datosForm(FORM_CREDITO, "completado", h6, List.of(
                             dato(CMP_TIPO_CR, "Tipo de crédito",       "vivienda"),
                             dato(CMP_MONTO,   "Monto solicitado (Bs)", "150000")
                         ), List.of())),
                     // Flujo condicional activado por condicionValor="vivienda"
-                    act("act_012", FLU_VIVIEN, USR_JORGE, DEP_ADM, "Crédito vivienda", "activo", 48, "verde", h6, null,
+                    act("act_012", FLU_VIVIEN, USR_JORGE, DEP_ADM, "Crédito vivienda", "activo", h6, null,
                         null,
                         datosForm(FORM_EVAL, "en_proceso", h6, List.of(), List.of()))
                 )).build()
@@ -408,13 +408,13 @@ public class DataSeeder implements CommandLineRunner {
                 .requerido(requerido).opciones(opciones).build();
     }
 
-    private Flujo flu(String id, String nombre, String politicaId, String formularioId,
+    private Flujo flu(String id, String politicaId, String formularioId,
                       int orden, boolean obligatorio, String padreId,
-                      String condCampo, String condValor, String depId, int horas) {
-        return Flujo.builder().id(id).nombre(nombre).politicaId(politicaId)
+                      String condCampo, String condValor, String depId) {
+        return Flujo.builder().id(id).politicaId(politicaId)
                 .formularioId(formularioId).orden(orden).esObligatorio(obligatorio)
                 .flujoPadreId(padreId).condicionCampo(condCampo).condicionValor(condValor)
-                .departamentoId(depId).tiempoLimiteHoras(horas).build();
+                .departamentoId(depId).build();
     }
 
     private DatoForm dato(String componenteId, String etiqueta, String valor) {
@@ -432,11 +432,10 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private Actividad act(String id, String flujoId, String usuarioId, String depId, String nombre,
-                          String estado, int tiempoLimite, String semaforo,
-                          LocalDateTime inicio, LocalDateTime fin, String observacion,
+                          String estado, LocalDateTime inicio, LocalDateTime fin, String observacion,
                           DatosClienteForm datosForm) {
         return Actividad.builder().id(id).flujoId(flujoId).usuarioId(usuarioId).departamentoId(depId)
-                .nombre(nombre).estado(estado).tiempoLimite(tiempoLimite).semaforo(semaforo)
+                .nombre(nombre).estado(estado)
                 .fechaInicio(inicio).fechaFin(fin).observacion(observacion).datosForm(datosForm).build();
     }
 

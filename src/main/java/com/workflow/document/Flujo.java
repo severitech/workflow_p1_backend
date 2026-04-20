@@ -17,8 +17,6 @@ public class Flujo {
     @Id
     private String id;
 
-    private String nombre;
-
     @Indexed
     private String politicaId;
 
@@ -38,8 +36,11 @@ public class Flujo {
     /** Departamento responsable de esta actividad */
     private String departamentoId;
 
-    /** Tiempo límite en horas para completar la actividad */
-    private int tiempoLimiteHoras;
+    /** Posición X del nodo en el canvas del editor */
+    private Double posicionX;
+
+    /** Posición Y del nodo en el canvas del editor */
+    private Double posicionY;
 
     @CreatedDate
     private LocalDateTime fechaCreacion;

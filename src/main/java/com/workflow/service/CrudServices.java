@@ -180,11 +180,11 @@ public class CrudServices {
         List<Flujo> flujos = flujoRepository.findByPoliticaIdOrderByOrden(id);
         for (Flujo flujo : flujos) {
             flujoRepository.save(Flujo.builder()
-                    .nombre(flujo.getNombre()).politicaId(nuevaPoliticaId)
+                    .politicaId(nuevaPoliticaId)
                     .formularioId(flujo.getFormularioId()).orden(flujo.getOrden())
                     .esObligatorio(flujo.isEsObligatorio()).flujoPadreId(flujo.getFlujoPadreId())
                     .condicionCampo(flujo.getCondicionCampo()).condicionValor(flujo.getCondicionValor())
-                    .departamentoId(flujo.getDepartamentoId()).tiempoLimiteHoras(flujo.getTiempoLimiteHoras())
+                    .departamentoId(flujo.getDepartamentoId())
                     .build());
         }
         return nueva;
@@ -194,11 +194,11 @@ public class CrudServices {
 
     public Flujo crearFlujo(FlujoRequest req) {
         Flujo flujo = Flujo.builder()
-                .nombre(req.getNombre()).politicaId(req.getPoliticaId())
+                .politicaId(req.getPoliticaId())
                 .formularioId(req.getFormularioId()).orden(req.getOrden())
                 .esObligatorio(req.isEsObligatorio()).flujoPadreId(req.getFlujoPadreId())
                 .condicionCampo(req.getCondicionCampo()).condicionValor(req.getCondicionValor())
-                .departamentoId(req.getDepartamentoId()).tiempoLimiteHoras(req.getTiempoLimiteHoras())
+                .departamentoId(req.getDepartamentoId())
                 .build();
         return flujoRepository.save(flujo);
     }
@@ -218,11 +218,12 @@ public class CrudServices {
     public Flujo actualizarFlujo(String id, FlujoRequest req) {
         Flujo flujo = flujoRepository.findById(id)
                 .orElseThrow(() -> new WorkflowException("Flujo no encontrado: " + id));
-        flujo.setNombre(req.getNombre()); flujo.setFormularioId(req.getFormularioId());
+        flujo.setFormularioId(req.getFormularioId());
         flujo.setOrden(req.getOrden()); flujo.setEsObligatorio(req.isEsObligatorio());
         flujo.setFlujoPadreId(req.getFlujoPadreId()); flujo.setCondicionCampo(req.getCondicionCampo());
         flujo.setCondicionValor(req.getCondicionValor()); flujo.setDepartamentoId(req.getDepartamentoId());
-        flujo.setTiempoLimiteHoras(req.getTiempoLimiteHoras());
+        if (req.getPosicionX() != null) flujo.setPosicionX(req.getPosicionX());
+        if (req.getPosicionY() != null) flujo.setPosicionY(req.getPosicionY());
         return flujoRepository.save(flujo);
     }
 
