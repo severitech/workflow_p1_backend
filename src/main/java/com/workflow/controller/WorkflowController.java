@@ -52,6 +52,11 @@ public class WorkflowController {
         return ResponseEntity.ok(workflowService.obtenerActivos(empresaId));
     }
 
+    @GetMapping("/empresa/{empresaId}/todos")
+    public ResponseEntity<List<Tramite>> todos(@PathVariable String empresaId) {
+        return ResponseEntity.ok(workflowService.obtenerTodos(empresaId));
+    }
+
     @GetMapping("/empresa/{empresaId}/urgentes")
     public ResponseEntity<List<Tramite>> urgentes(@PathVariable String empresaId) {
         return ResponseEntity.ok(workflowService.obtenerUrgentes(empresaId));

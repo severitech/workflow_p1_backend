@@ -38,17 +38,26 @@ public class DataSeeder implements CommandLineRunner {
     private static final String DEP_REC      = "dep_001";
     private static final String DEP_TEC      = "dep_002";
     private static final String DEP_ADM      = "dep_003";
+    private static final String DEP_REC2     = "dep_004";
+    private static final String DEP_REC3     = "dep_005";
+    private static final String DEP_REC4     = "dep_006";
+    private static final String DEP_REC5     = "dep_007";
     // Roles — solo 3
     private static final String ROL_CLI      = "rol_001";
     private static final String ROL_REC      = "rol_002";
     private static final String ROL_ADM      = "rol_003";
-    // Usuarios
-    private static final String USR_MARIA    = "usr_001";  // recepcionista
-    private static final String USR_JORGE    = "usr_002";  // administrador
-    private static final String USR_CARLOS   = "usr_003";  // administrador (gestiona técnica)
-    private static final String USR_ROBERTO  = "usr_004";  // cliente
-    private static final String USR_LUISA    = "usr_005";  // cliente
-    private static final String USR_PEDRO    = "usr_006";  // cliente
+    // Usuarios — administradores
+    private static final String USR_JORGE    = "usr_001";  // admin1
+    private static final String USR_CARLOS   = "usr_002";  // admin2
+    // Usuarios — clientes
+    private static final String USR_ROBERTO  = "usr_003";  // cliente1
+    private static final String USR_LUISA    = "usr_004";  // cliente2
+    // Usuarios — recepcionistas (cada una en su propio departamento)
+    private static final String USR_MARIA    = "usr_005";  // recepcion1
+    private static final String USR_ANA      = "usr_006";  // recepcion2
+    private static final String USR_SOFIA    = "usr_007";  // recepcion3
+    private static final String USR_ELENA    = "usr_008";  // recepcion4
+    private static final String USR_ROSA     = "usr_009";  // recepcion5
     // Tipos de componente
     private static final String TC_TEXTO     = "tc_001";
     private static final String TC_TEXTAREA  = "tc_002";
@@ -132,11 +141,15 @@ public class DataSeeder implements CommandLineRunner {
 
         // ── Departamentos ─────────────────────────────────────
         departamentoRepository.saveAll(List.of(
-                dep(DEP_REC, "Recepción",     "Atención al cliente",        EMP1),
-                dep(DEP_TEC, "Técnico",       "Inspecciones y evaluaciones", EMP1),
-                dep(DEP_ADM, "Administración","Gestión y administración",    EMP1)
+                dep(DEP_REC,  "Recepción 1",      "Recepción — ventanilla 1", EMP1),
+                dep(DEP_TEC,  "Técnico",           "Inspecciones y evaluaciones", EMP1),
+                dep(DEP_ADM,  "Administración",    "Gestión y administración",    EMP1),
+                dep(DEP_REC2, "Recepción 2",       "Recepción — ventanilla 2", EMP1),
+                dep(DEP_REC3, "Recepción 3",       "Recepción — ventanilla 3", EMP1),
+                dep(DEP_REC4, "Recepción 4",       "Recepción — ventanilla 4", EMP1),
+                dep(DEP_REC5, "Recepción 5",       "Recepción — ventanilla 5", EMP1)
         ));
-        log.info("[DataSeeder] Departamentos: {}, {}, {}", DEP_REC, DEP_TEC, DEP_ADM);
+        log.info("[DataSeeder] Departamentos creados: {}, {}, {}, {}, {}, {}, {}", DEP_REC, DEP_TEC, DEP_ADM, DEP_REC2, DEP_REC3, DEP_REC4, DEP_REC5);
 
         // ── Roles — solo 3 ────────────────────────────────────
         rolRepository.saveAll(List.of(
@@ -148,14 +161,20 @@ public class DataSeeder implements CommandLineRunner {
 
         // ── Usuarios ──────────────────────────────────────────
         usuarioRepository.saveAll(List.of(
-                usr(USR_MARIA,   "María",   "García",  "maria@crebolivia.com",  passHash, ROL_REC, EMP1, DEP_REC),
-                usr(USR_JORGE,   "Jorge",   "López",   "jorge@crebolivia.com",  passHash, ROL_ADM, EMP1, DEP_ADM),
-                usr(USR_CARLOS,  "Carlos",  "Pérez",   "carlos@crebolivia.com", passHash, ROL_ADM, EMP1, DEP_TEC),
-                usr(USR_ROBERTO, "Roberto", "Flores",  "roberto@cliente.com",   passHash, ROL_CLI, EMP1, null),
-                usr(USR_LUISA,   "Luisa",   "Méndez",  "luisa@cliente.com",     passHash, ROL_CLI, EMP1, null),
-                usr(USR_PEDRO,   "Pedro",   "Vásquez", "pedro@cliente.com",     passHash, ROL_CLI, EMP1, null)
+                // Administradores
+                usr(USR_JORGE,   "Jorge",   "López",    "admin1@crebolivia.com",    passHash, ROL_ADM, EMP1, DEP_ADM),
+                usr(USR_CARLOS,  "Carlos",  "Pérez",    "admin2@crebolivia.com",    passHash, ROL_ADM, EMP1, DEP_ADM),
+                // Clientes
+                usr(USR_ROBERTO, "Roberto", "Flores",   "cliente1@crebolivia.com",  passHash, ROL_CLI, EMP1, null),
+                usr(USR_LUISA,   "Luisa",   "Méndez",   "cliente2@crebolivia.com",  passHash, ROL_CLI, EMP1, null),
+                // Recepcionistas — cada una en su propio departamento de recepción
+                usr(USR_MARIA,   "María",   "García",   "recepcion1@crebolivia.com", passHash, ROL_REC, EMP1, DEP_REC),
+                usr(USR_ANA,     "Ana",     "Torres",   "recepcion2@crebolivia.com", passHash, ROL_REC, EMP1, DEP_REC2),
+                usr(USR_SOFIA,   "Sofía",   "Vargas",   "recepcion3@crebolivia.com", passHash, ROL_REC, EMP1, DEP_REC3),
+                usr(USR_ELENA,   "Elena",   "Rojas",    "recepcion4@crebolivia.com", passHash, ROL_REC, EMP1, DEP_REC4),
+                usr(USR_ROSA,    "Rosa",    "Mamani",   "recepcion5@crebolivia.com", passHash, ROL_REC, EMP1, DEP_REC5)
         ));
-        log.info("[DataSeeder] Usuarios creados: maria(recepcionista), jorge(admin), carlos(admin), 3 clientes");
+        log.info("[DataSeeder] Usuarios creados: 2 admin, 2 clientes, 5 recepcionistas");
 
         // ── TipoComponentes ───────────────────────────────────
         tipoComponenteRepository.saveAll(List.of(
@@ -279,9 +298,9 @@ public class DataSeeder implements CommandLineRunner {
                         ), List.of()))
                 )).build(),
 
-            // TRA-003: Pedro — medidor — URGENTE
+            // TRA-003: Roberto — medidor — URGENTE
             Tramite.builder().id(TRA3).politicaId(POL_MEDIDOR)
-                .clienteId(USR_PEDRO).recepcionistaId(USR_MARIA).empresaId(EMP1)
+                .clienteId(USR_ROBERTO).recepcionistaId(USR_ANA).empresaId(EMP1)
                 .estado("urgente").prioridad("urgente").fecha(h48)
                 .actividades(List.of(
                     act("act_006", FLU_REC, USR_MARIA, DEP_REC, "Recepción", "completado", h48, h48,
@@ -362,7 +381,7 @@ public class DataSeeder implements CommandLineRunner {
                 notif(USR_LUISA,   TRA2, "COMPLETADO",      "Tu trámite de medidor fue completado exitosamente",      true,  h12),
                 notif(USR_MARIA,   TRA3, "SEMAFORO_ROJO",   "Trámite TRA-003 excedió el tiempo límite — URGENTE",     false, h6),
                 notif(USR_CARLOS,  TRA3, "SEMAFORO_ROJO",   "Tu actividad en TRA-003 está vencida — priorizar",       false, h6),
-                notif(USR_PEDRO,   TRA3, "URGENTE",         "Tu trámite fue marcado como URGENTE por demora",         false, h6),
+                notif(USR_ROBERTO,  TRA3, "URGENTE",         "Tu trámite fue marcado como URGENTE por demora",         false, h6),
                 notif(USR_MARIA,   TRA4, "NUEVA_ACTIVIDAD", "Nuevo trámite de crédito ingresado para Roberto Flores", true,  h6),
                 notif(USR_JORGE,   TRA5, "NUEVA_ACTIVIDAD", "Se te asignó evaluación de crédito vivienda — TRA-005", false, h1),
                 notif(USR_LUISA,   TRA5, "AVANCE",          "Tu solicitud de crédito avanzó a revisión — TRA-005",    false, h1)
@@ -372,12 +391,15 @@ public class DataSeeder implements CommandLineRunner {
         log.info("[DataSeeder]  Seeding completado — workflow_dev");
         log.info("[DataSeeder]  Roles disponibles: cliente, recepcionista, administrador");
         log.info("[DataSeeder]  Credenciales de prueba (password: 123456)");
-        log.info("[DataSeeder]  maria@crebolivia.com  → recepcionista");
-        log.info("[DataSeeder]  jorge@crebolivia.com  → administrador");
-        log.info("[DataSeeder]  carlos@crebolivia.com → administrador");
-        log.info("[DataSeeder]  roberto@cliente.com   → cliente");
-        log.info("[DataSeeder]  luisa@cliente.com     → cliente");
-        log.info("[DataSeeder]  pedro@cliente.com     → cliente");
+        log.info("[DataSeeder]  admin1@crebolivia.com      → administrador (admin1)");
+        log.info("[DataSeeder]  admin2@crebolivia.com      → administrador (admin2)");
+        log.info("[DataSeeder]  cliente1@crebolivia.com    → cliente (cliente1)");
+        log.info("[DataSeeder]  cliente2@crebolivia.com    → cliente (cliente2)");
+        log.info("[DataSeeder]  recepcion1@crebolivia.com  → recepcionista (Recepción 1)");
+        log.info("[DataSeeder]  recepcion2@crebolivia.com  → recepcionista (Recepción 2)");
+        log.info("[DataSeeder]  recepcion3@crebolivia.com  → recepcionista (Recepción 3)");
+        log.info("[DataSeeder]  recepcion4@crebolivia.com  → recepcionista (Recepción 4)");
+        log.info("[DataSeeder]  recepcion5@crebolivia.com  → recepcionista (Recepción 5)");
         log.info("[DataSeeder] ══════════════════════════════════════════════════");
     }
 

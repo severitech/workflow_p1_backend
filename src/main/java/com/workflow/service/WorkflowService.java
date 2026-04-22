@@ -249,6 +249,11 @@ public class WorkflowService {
         return tramiteRepository.findByEmpresaIdAndEstadoIn(empresaId, List.of("proceso", "urgente", "pendiente"));
     }
 
+    /** Retorna todos los trámites de una empresa sin importar el estado */
+    public List<Tramite> obtenerTodos(String empresaId) {
+        return tramiteRepository.findByEmpresaId(empresaId);
+    }
+
     /** Retorna trámites con prioridad urgente de una empresa */
     public List<Tramite> obtenerUrgentes(String empresaId) {
         return tramiteRepository.findByEmpresaIdAndPrioridad(empresaId, "urgente");

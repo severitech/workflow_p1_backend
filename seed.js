@@ -122,13 +122,20 @@ print("✓ Roles insertados");
 // ─── USUARIOS (password = BCrypt de "123456") ────────────────
 const passHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 db.usuarios.insertMany([
-  { _id: IDS.usrMaria,   nombre: "María",   apellido: "García",  correo: "maria@crebolivia.com",  password: passHash, rolId: IDS.rolRecepcionista, empresaId: IDS.empresa1, departamentoId: IDS.depRecepcion, activo: true, fechaCreacion: hace48h },
-  { _id: IDS.usrJorge,   nombre: "Jorge",   apellido: "López",   correo: "jorge@crebolivia.com",  password: passHash, rolId: IDS.rolAdmin,         empresaId: IDS.empresa1, departamentoId: IDS.depAdmin,     activo: true, fechaCreacion: hace48h },
-  { _id: IDS.usrCarlos,  nombre: "Carlos",  apellido: "Pérez",   correo: "carlos@crebolivia.com", password: passHash, rolId: IDS.rolAdmin,         empresaId: IDS.empresa1, departamentoId: IDS.depTecnico,   activo: true, fechaCreacion: hace48h },
-  { _id: IDS.usrRoberto, nombre: "Roberto", apellido: "Flores",  correo: "roberto@cliente.com",   password: passHash, rolId: IDS.rolCliente,       empresaId: IDS.empresa1, departamentoId: null,             activo: true, fechaCreacion: hace48h },
-  { _id: IDS.usrLuisa,   nombre: "Luisa",   apellido: "Méndez",  correo: "luisa@cliente.com",     password: passHash, rolId: IDS.rolCliente,       empresaId: IDS.empresa1, departamentoId: null,             activo: true, fechaCreacion: hace48h },
-  { _id: IDS.usrPedro,   nombre: "Pedro",   apellido: "Vásquez", correo: "pedro@cliente.com",     password: passHash, rolId: IDS.rolCliente,       empresaId: IDS.empresa1, departamentoId: null,             activo: true, fechaCreacion: hace48h }
-]);
+// 5 RECEPCIONISTAS
+{ _id: IDS.usrRecepcionista1, nombre: "Ana",     apellido: "García",    correo: "recepcionista1@crebolivia.com", password: passHash, rolId: IDS.rolRecepcionista, empresaId: IDS.empresa1, departamentoId: IDS.depRecepcion, activo: true, fechaCreacion: hace48h },
+{ _id: IDS.usrRecepcionista2, nombre: "María",   apellido: "López",     correo: "recepcionista2@crebolivia.com", password: passHash, rolId: IDS.rolRecepcionista, empresaId: IDS.empresa1, departamentoId: IDS.depRecepcion, activo: true, fechaCreacion: hace48h },
+{ _id: IDS.usrRecepcionista3, nombre: "Carmen",  apellido: "Martínez",  correo: "recepcionista3@crebolivia.com", password: passHash, rolId: IDS.rolRecepcionista, empresaId: IDS.empresa1, departamentoId: IDS.depRecepcion, activo: true, fechaCreacion: hace48h },
+{ _id: IDS.usrRecepcionista4, nombre: "Laura",   apellido: "Sánchez",   correo: "recepcionista4@crebolivia.com", password: passHash, rolId: IDS.rolRecepcionista, empresaId: IDS.empresa1, departamentoId: IDS.depRecepcion, activo: true, fechaCreacion: hace48h },
+{ _id: IDS.usrRecepcionista5, nombre: "Patricia", apellido: "Ramírez",  correo: "recepcionista5@crebolivia.com", password: passHash, rolId: IDS.rolRecepcionista, empresaId: IDS.empresa1, departamentoId: IDS.depRecepcion, activo: true, fechaCreacion: hace48h },
+
+// 2 CLIENTES
+{ _id: IDS.usrCliente1, nombre: "Roberto", apellido: "Flores",   correo: "cliente1@crebolivia.com", password: passHash, rolId: IDS.rolCliente, empresaId: IDS.empresa1, departamentoId: null, activo: true, fechaCreacion: hace48h },
+{ _id: IDS.usrCliente2, nombre: "Luisa",   apellido: "Méndez",   correo: "cliente2@crebolivia.com", password: passHash, rolId: IDS.rolCliente, empresaId: IDS.empresa1, departamentoId: null, activo: true, fechaCreacion: hace48h },
+
+// 2 ADMINISTRADORES
+{ _id: IDS.usrAdmin1, nombre: "Jorge", apellido: "López",    correo: "admin1@crebolivia.com", password: passHash, rolId: IDS.rolAdmin, empresaId: IDS.empresa1, departamentoId: IDS.depAdmin, activo: true, fechaCreacion: hace48h },
+{ _id: IDS.usrAdmin2, nombre: "Carlos", apellido: "Pérez",   correo: "admin2@crebolivia.com", password: passHash, rolId: IDS.rolAdmin, empresaId: IDS.empresa1, departamentoId: IDS.depTecnico, activo: true, fechaCreacion: hace48h },]);
 print("✓ Usuarios insertados");
 
 // ─── TIPO COMPONENTES ────────────────────────────────────────
