@@ -15,9 +15,6 @@ public class FlujoRequest {
     private String formularioId;
     private int orden;
     private boolean esObligatorio;
-    private String flujoPadreId;
-    private String condicionCampo;
-    private String condicionValor;
     private String departamentoId;
     private Double posicionX;
     private Double posicionY;

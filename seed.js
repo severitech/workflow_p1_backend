@@ -9,7 +9,7 @@ db = db.getSiblingDB(DB_NAME);
 // Limpia todas las colecciones antes de insertar
 const colecciones = [
   "empresas","departamentos","roles","usuarios","tipo_componentes",
-  "formularios","politicas_negocio","flujos","tramites","bitacora","notificaciones"
+  "formularios","politicas_negocio","flujos","flujo_relaciones","tramites","bitacora","notificaciones"
 ];
 colecciones.forEach(c => { db[c].drop(); print("Colección limpiada: " + c); });
 
@@ -237,25 +237,38 @@ db.politicas_negocio.insertMany([
 ]);
 print("✓ Políticas insertadas");
 
-// ─── FLUJOS (sin nombre ni tiempoLimiteHoras) ────────────────
+// ─── FLUJOS — nodos puros sin campos de relación ────────────
 db.flujos.insertMany([
-  // Medidor — 3 pasos secuenciales
-  { _id: IDS.flujoRecepcion, politicaId: IDS.politicaMedidor, formularioId: IDS.formMedidor,     orden: 1, esObligatorio: true, flujoPadreId: null, condicionCampo: null, condicionValor: null, departamentoId: IDS.depRecepcion, fechaCreacion: hace48h },
-  { _id: IDS.flujoTecnico,   politicaId: IDS.politicaMedidor, formularioId: IDS.formEvalTecnica, orden: 2, esObligatorio: true, flujoPadreId: null, condicionCampo: null, condicionValor: null, departamentoId: IDS.depTecnico,   fechaCreacion: hace48h },
-  { _id: IDS.flujoCierre,    politicaId: IDS.politicaMedidor, formularioId: IDS.formCierre,      orden: 3, esObligatorio: true, flujoPadreId: null, condicionCampo: null, condicionValor: null, departamentoId: IDS.depRecepcion, fechaCreacion: hace48h },
+  // Medidor — 3 pasos raíz secuenciales
+  { _id: IDS.flujoRecepcion, politicaId: IDS.politicaMedidor, formularioId: IDS.formMedidor,     orden: 1, esObligatorio: true, departamentoId: IDS.depRecepcion, fechaCreacion: hace48h },
+  { _id: IDS.flujoTecnico,   politicaId: IDS.politicaMedidor, formularioId: IDS.formEvalTecnica, orden: 2, esObligatorio: true, departamentoId: IDS.depTecnico,   fechaCreacion: hace48h },
+  { _id: IDS.flujoCierre,    politicaId: IDS.politicaMedidor, formularioId: IDS.formCierre,      orden: 3, esObligatorio: true, departamentoId: IDS.depRecepcion, fechaCreacion: hace48h },
 
   // Crédito — raíces
-  { _id: IDS.flujoDatosCliente, politicaId: IDS.politicaCredito, formularioId: IDS.formDatosCliente, orden: 1, esObligatorio: true, flujoPadreId: null, condicionCampo: null, condicionValor: null, departamentoId: IDS.depRecepcion, fechaCreacion: hace48h },
-  { _id: IDS.flujoTipoCredito,  politicaId: IDS.politicaCredito, formularioId: IDS.formTipoCredito,  orden: 2, esObligatorio: true, flujoPadreId: null, condicionCampo: null, condicionValor: null, departamentoId: IDS.depRecepcion, fechaCreacion: hace48h },
+  { _id: IDS.flujoDatosCliente, politicaId: IDS.politicaCredito, formularioId: IDS.formDatosCliente, orden: 1, esObligatorio: true, departamentoId: IDS.depRecepcion, fechaCreacion: hace48h },
+  { _id: IDS.flujoTipoCredito,  politicaId: IDS.politicaCredito, formularioId: IDS.formTipoCredito,  orden: 2, esObligatorio: true, departamentoId: IDS.depRecepcion, fechaCreacion: hace48h },
 
-  // Hijos condicionales del paso "Tipo de crédito"
-  { _id: IDS.flujoCredVivienda, politicaId: IDS.politicaCredito, formularioId: IDS.formEvalTecnica, orden: 3, esObligatorio: true, flujoPadreId: IDS.flujoTipoCredito, condicionCampo: "Tipo de crédito", condicionValor: "vivienda", departamentoId: IDS.depAdmin,    fechaCreacion: hace48h },
-  { _id: IDS.flujoCredEmpresa,  politicaId: IDS.politicaCredito, formularioId: IDS.formEvalTecnica, orden: 3, esObligatorio: true, flujoPadreId: IDS.flujoTipoCredito, condicionCampo: "Tipo de crédito", condicionValor: "empresa",  departamentoId: IDS.depAdmin,    fechaCreacion: hace48h },
-  { _id: IDS.flujoCredVehiculo, politicaId: IDS.politicaCredito, formularioId: IDS.formEvalTecnica, orden: 3, esObligatorio: true, flujoPadreId: IDS.flujoTipoCredito, condicionCampo: "Tipo de crédito", condicionValor: "vehiculo",  departamentoId: IDS.depTecnico,  fechaCreacion: hace48h },
-
-  { _id: IDS.flujoCierreCredito, politicaId: IDS.politicaCredito, formularioId: IDS.formCierre, orden: 4, esObligatorio: true, flujoPadreId: null, condicionCampo: null, condicionValor: null, departamentoId: IDS.depRecepcion, fechaCreacion: hace48h }
+  // Hijos condicionales — sin flujoPadreId (la relación es independiente)
+  { _id: IDS.flujoCredVivienda,  politicaId: IDS.politicaCredito, formularioId: IDS.formEvalTecnica, orden: 3, esObligatorio: true, departamentoId: IDS.depAdmin,    fechaCreacion: hace48h },
+  { _id: IDS.flujoCredEmpresa,   politicaId: IDS.politicaCredito, formularioId: IDS.formEvalTecnica, orden: 3, esObligatorio: true, departamentoId: IDS.depAdmin,    fechaCreacion: hace48h },
+  { _id: IDS.flujoCredVehiculo,  politicaId: IDS.politicaCredito, formularioId: IDS.formEvalTecnica, orden: 3, esObligatorio: true, departamentoId: IDS.depTecnico,  fechaCreacion: hace48h },
+  { _id: IDS.flujoCierreCredito, politicaId: IDS.politicaCredito, formularioId: IDS.formCierre,      orden: 4, esObligatorio: true, departamentoId: IDS.depRecepcion, fechaCreacion: hace48h }
 ]);
 print("✓ Flujos insertados");
+
+// ─── RELACIONES ENTRE FLUJOS (muchos-a-muchos) ───────────────
+db.flujo_relaciones.insertMany([
+  // Crédito: flujoTipoCredito → 3 hijos condicionales (1 padre, 3 hijos)
+  { _id: "rel_001", politicaId: IDS.politicaCredito, padreId: IDS.flujoTipoCredito,  hijoId: IDS.flujoCredVivienda,  condicionCampo: "Tipo de crédito", condicionValor: "vivienda", tipo: "condicional", fechaCreacion: hace48h },
+  { _id: "rel_002", politicaId: IDS.politicaCredito, padreId: IDS.flujoTipoCredito,  hijoId: IDS.flujoCredEmpresa,   condicionCampo: "Tipo de crédito", condicionValor: "empresa",  tipo: "condicional", fechaCreacion: hace48h },
+  { _id: "rel_003", politicaId: IDS.politicaCredito, padreId: IDS.flujoTipoCredito,  hijoId: IDS.flujoCredVehiculo,  condicionCampo: "Tipo de crédito", condicionValor: "vehiculo", tipo: "condicional", fechaCreacion: hace48h },
+
+  // Convergencia: los 3 hijos apuntan al mismo cierre (3 padres, 1 hijo)
+  { _id: "rel_004", politicaId: IDS.politicaCredito, padreId: IDS.flujoCredVivienda,  hijoId: IDS.flujoCierreCredito, condicionCampo: null, condicionValor: null, tipo: "siguiente", fechaCreacion: hace48h },
+  { _id: "rel_005", politicaId: IDS.politicaCredito, padreId: IDS.flujoCredEmpresa,   hijoId: IDS.flujoCierreCredito, condicionCampo: null, condicionValor: null, tipo: "siguiente", fechaCreacion: hace48h },
+  { _id: "rel_006", politicaId: IDS.politicaCredito, padreId: IDS.flujoCredVehiculo,  hijoId: IDS.flujoCierreCredito, condicionCampo: null, condicionValor: null, tipo: "siguiente", fechaCreacion: hace48h }
+]);
+print("✓ Relaciones de flujo insertadas (3 condicionales + 3 convergencias)");
 
 // ─── TRÁMITES (sin semaforo ni tiempoLimite en actividades) ──
 db.tramites.insertMany([

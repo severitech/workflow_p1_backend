@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -21,12 +21,12 @@ public class CrudServices {
     private final FormularioRepository formularioRepository;
     private final PoliticaNegocioRepository politicaRepository;
     private final FlujoRepository flujoRepository;
+    private final FlujoRelacionRepository relacionRepository;
     private final NotificacionRepository notificacionRepository;
     private final PasswordEncoder encoderPassword;
 
     // ── Empresas ─────────────────────────────────────────────────────────────
 
-    /** Crea una empresa nueva */
     public Empresa crearEmpresa(EmpresaRequest req) {
         Empresa empresa = Empresa.builder()
                 .nombre(req.getNombre()).nit(req.getNit()).direccion(req.getDireccion())
@@ -41,7 +41,6 @@ public class CrudServices {
                 .orElseThrow(() -> new WorkflowException("Empresa no encontrada: " + id));
     }
 
-    /** Actualiza una empresa existente */
     public Empresa actualizarEmpresa(String id, EmpresaRequest req) {
         Empresa empresa = obtenerEmpresa(id);
         empresa.setNombre(req.getNombre()); empresa.setNit(req.getNit());
@@ -84,7 +83,6 @@ public class CrudServices {
                 .stream().map(this::mapearUsuario).toList();
     }
 
-    /** Actualiza usuario sin modificar la contraseña */
     public UsuarioResponse actualizarUsuario(String id, UsuarioRequest req) {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new WorkflowException("Usuario no encontrado: " + id));
@@ -97,7 +95,6 @@ public class CrudServices {
 
     // ── Formularios ───────────────────────────────────────────────────────────
 
-    /** Crea un formulario con sus componentes embebidos */
     public Formulario crearFormulario(FormularioRequest req) {
         Formulario form = Formulario.builder()
                 .nombre(req.getNombre()).descripcion(req.getDescripcion())
@@ -125,7 +122,6 @@ public class CrudServices {
 
     // ── Políticas ─────────────────────────────────────────────────────────────
 
-    /** Crea una política en estado borrador */
     public PoliticaNegocio crearPolitica(PoliticaRequest req) {
         PoliticaNegocio politica = PoliticaNegocio.builder()
                 .nombre(req.getNombre()).descripcion(req.getDescripcion()).tipo(req.getTipo())
@@ -158,14 +154,16 @@ public class CrudServices {
         return politicaRepository.save(politica);
     }
 
-    /** Cambia el estado de una política a activa */
     public PoliticaNegocio activarPolitica(String id) {
         PoliticaNegocio politica = obtenerPolitica(id);
         politica.setEstado("activa");
         return politicaRepository.save(politica);
     }
 
-    /** Clona una política y sus flujos como nueva versión */
+    /**
+     * Clona una política y sus flujos + relaciones como nueva versión.
+     * Construye un mapa de IDs viejos→nuevos para reasignar relaciones correctamente.
+     */
     public PoliticaNegocio nuevaVersionPolitica(String id) {
         PoliticaNegocio original = obtenerPolitica(id);
         PoliticaNegocio nueva = PoliticaNegocio.builder()
@@ -175,18 +173,33 @@ public class CrudServices {
                 .empresaId(original.getEmpresaId()).creadoPorId(original.getCreadoPorId()).build();
         nueva = politicaRepository.save(nueva);
 
-        // Clonar flujos
         final String nuevaPoliticaId = nueva.getId();
+
+        // Clonar flujos y construir mapa oldId -> newId
         List<Flujo> flujos = flujoRepository.findByPoliticaIdOrderByOrden(id);
+        Map<String, String> mapaIds = new HashMap<>();
         for (Flujo flujo : flujos) {
-            flujoRepository.save(Flujo.builder()
+            Flujo clonado = flujoRepository.save(Flujo.builder()
                     .politicaId(nuevaPoliticaId)
                     .formularioId(flujo.getFormularioId()).orden(flujo.getOrden())
-                    .esObligatorio(flujo.isEsObligatorio()).flujoPadreId(flujo.getFlujoPadreId())
-                    .condicionCampo(flujo.getCondicionCampo()).condicionValor(flujo.getCondicionValor())
-                    .departamentoId(flujo.getDepartamentoId())
+                    .esObligatorio(flujo.isEsObligatorio()).departamentoId(flujo.getDepartamentoId())
                     .build());
+            mapaIds.put(flujo.getId(), clonado.getId());
         }
+
+        // Clonar relaciones remapeando padreId e hijoId
+        for (FlujoRelacion rel : relacionRepository.findByPoliticaId(id)) {
+            String nuevoPadre = mapaIds.get(rel.getPadreId());
+            String nuevoHijo  = mapaIds.get(rel.getHijoId());
+            if (nuevoPadre != null && nuevoHijo != null) {
+                relacionRepository.save(FlujoRelacion.builder()
+                        .politicaId(nuevaPoliticaId)
+                        .padreId(nuevoPadre).hijoId(nuevoHijo)
+                        .condicionCampo(rel.getCondicionCampo()).condicionValor(rel.getCondicionValor())
+                        .tipo(rel.getTipo()).build());
+            }
+        }
+
         return nueva;
     }
 
@@ -196,9 +209,7 @@ public class CrudServices {
         Flujo flujo = Flujo.builder()
                 .politicaId(req.getPoliticaId())
                 .formularioId(req.getFormularioId()).orden(req.getOrden())
-                .esObligatorio(req.isEsObligatorio()).flujoPadreId(req.getFlujoPadreId())
-                .condicionCampo(req.getCondicionCampo()).condicionValor(req.getCondicionValor())
-                .departamentoId(req.getDepartamentoId())
+                .esObligatorio(req.isEsObligatorio()).departamentoId(req.getDepartamentoId())
                 .build();
         return flujoRepository.save(flujo);
     }
@@ -207,12 +218,22 @@ public class CrudServices {
         return flujoRepository.findByPoliticaIdOrderByOrden(politicaId);
     }
 
+    /** Flujos raíz = flujos sin relaciones condicionales entrantes */
     public List<Flujo> listarFlujoRaiz(String politicaId) {
-        return flujoRepository.findByPoliticaIdAndFlujoPadreIdIsNullOrderByOrden(politicaId);
+        Set<String> hijoIds = new HashSet<>();
+        relacionRepository.findByPoliticaId(politicaId).stream()
+                .filter(r -> "condicional".equals(r.getTipo()))
+                .forEach(r -> hijoIds.add(r.getHijoId()));
+        return flujoRepository.findByPoliticaIdOrderByOrden(politicaId).stream()
+                .filter(f -> !hijoIds.contains(f.getId())).toList();
     }
 
-    public List<Flujo> listarHijos(String flujoId) {
-        return flujoRepository.findByFlujoPadreId(flujoId);
+    /** Hijos de un flujo = flujos apuntados por relaciones condicionales con ese padre */
+    public List<Flujo> listarHijos(String padreId) {
+        return relacionRepository.findByPadreId(padreId).stream()
+                .filter(r -> "condicional".equals(r.getTipo()))
+                .map(r -> flujoRepository.findById(r.getHijoId()).orElse(null))
+                .filter(Objects::nonNull).toList();
     }
 
     public Flujo actualizarFlujo(String id, FlujoRequest req) {
@@ -220,18 +241,55 @@ public class CrudServices {
                 .orElseThrow(() -> new WorkflowException("Flujo no encontrado: " + id));
         flujo.setFormularioId(req.getFormularioId());
         flujo.setOrden(req.getOrden()); flujo.setEsObligatorio(req.isEsObligatorio());
-        flujo.setFlujoPadreId(req.getFlujoPadreId()); flujo.setCondicionCampo(req.getCondicionCampo());
-        flujo.setCondicionValor(req.getCondicionValor()); flujo.setDepartamentoId(req.getDepartamentoId());
+        flujo.setDepartamentoId(req.getDepartamentoId());
         if (req.getPosicionX() != null) flujo.setPosicionX(req.getPosicionX());
         if (req.getPosicionY() != null) flujo.setPosicionY(req.getPosicionY());
         return flujoRepository.save(flujo);
     }
 
-    /** Elimina el flujo y todos sus flujos hijos */
+    /** Elimina el flujo y todas sus relaciones (como padre o como hijo) */
     public void eliminarFlujo(String id) {
-        flujoRepository.findByFlujoPadreId(id).forEach(hijo -> flujoRepository.deleteById(hijo.getId()));
+        List<FlujoRelacion> relacionadas = relacionRepository.findByPadreIdOrHijoId(id, id);
+        relacionRepository.deleteAll(relacionadas);
         flujoRepository.deleteById(id);
     }
+
+    // ── Relaciones de flujo ────────────────────────────────────────────────────
+
+    /** Crea una relación entre dos flujos */
+    public FlujoRelacion crearRelacion(FlujoRelacionRequest req) {
+        FlujoRelacion relacion = FlujoRelacion.builder()
+                .politicaId(req.getPoliticaId())
+                .padreId(req.getPadreId()).hijoId(req.getHijoId())
+                .condicionCampo(req.getCondicionCampo()).condicionValor(req.getCondicionValor())
+                .tipo(req.getTipo() != null ? req.getTipo() : "condicional")
+                .build();
+        return relacionRepository.save(relacion);
+    }
+
+    public List<FlujoRelacion> listarRelacionesPorPolitica(String politicaId) {
+        return relacionRepository.findByPoliticaId(politicaId);
+    }
+
+    public List<FlujoRelacion> listarRelacionesPorPadre(String padreId) {
+        return relacionRepository.findByPadreId(padreId);
+    }
+
+    public FlujoRelacion obtenerRelacion(String id) {
+        return relacionRepository.findById(id)
+                .orElseThrow(() -> new WorkflowException("Relación no encontrada: " + id));
+    }
+
+    /** Actualiza la condición de una relación existente */
+    public FlujoRelacion actualizarRelacion(String id, FlujoRelacionRequest req) {
+        FlujoRelacion relacion = obtenerRelacion(id);
+        relacion.setCondicionCampo(req.getCondicionCampo());
+        relacion.setCondicionValor(req.getCondicionValor());
+        if (req.getTipo() != null) relacion.setTipo(req.getTipo());
+        return relacionRepository.save(relacion);
+    }
+
+    public void eliminarRelacion(String id) { relacionRepository.deleteById(id); }
 
     // ── Notificaciones ────────────────────────────────────────────────────────
 
@@ -247,7 +305,6 @@ public class CrudServices {
         return notificacionRepository.countByUsuarioIdAndLeidaFalse(usuarioId);
     }
 
-    /** Marca una notificación como leída */
     public Notificacion marcarLeida(String id) {
         Notificacion notif = notificacionRepository.findById(id)
                 .orElseThrow(() -> new WorkflowException("Notificación no encontrada: " + id));
@@ -255,7 +312,6 @@ public class CrudServices {
         return notificacionRepository.save(notif);
     }
 
-    /** Marca todas las notificaciones de un usuario como leídas */
     public void marcarTodasLeidas(String usuarioId) {
         List<Notificacion> pendientes = notificacionRepository
                 .findByUsuarioIdAndLeidaFalseOrderByFechaDesc(usuarioId);

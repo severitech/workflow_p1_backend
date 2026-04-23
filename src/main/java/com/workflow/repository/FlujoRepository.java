@@ -9,15 +9,10 @@ import java.util.List;
 @Repository
 public interface FlujoRepository extends MongoRepository<Flujo, String> {
 
+    /** Todos los flujos de una política ordenados por orden */
     List<Flujo> findByPoliticaIdOrderByOrden(String politicaId);
 
-    /** Flujos raíz (sin padre) de una política */
-    List<Flujo> findByPoliticaIdAndFlujoPadreIdIsNullOrderByOrden(String politicaId);
-
-    /** Flujos hijos de un flujo padre */
-    List<Flujo> findByFlujoPadreId(String flujoPadreId);
-
-    /** Siguiente flujo raíz por orden */
-    java.util.Optional<Flujo> findFirstByPoliticaIdAndFlujoPadreIdIsNullAndOrdenGreaterThanOrderByOrden(
+    /** Siguiente flujo de una política con orden mayor al indicado */
+    java.util.Optional<Flujo> findFirstByPoliticaIdAndOrdenGreaterThanOrderByOrden(
             String politicaId, int orden);
 }

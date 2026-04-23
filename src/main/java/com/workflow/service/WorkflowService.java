@@ -20,6 +20,7 @@ public class WorkflowService {
     private final TramiteRepository tramiteRepository;
     private final PoliticaNegocioRepository politicaRepository;
     private final FlujoRepository flujoRepository;
+    private final FlujoRelacionRepository relacionRepository;
     private final BitacoraRepository bitacoraRepository;
     private final NotificacionRepository notificacionRepository;
     private final SimpMessagingTemplate mensajeria;
@@ -34,9 +35,11 @@ public class WorkflowService {
             throw new WorkflowException("La política no está activa");
         }
 
-        Flujo primerFlujo = flujoRepository
-                .findByPoliticaIdAndFlujoPadreIdIsNullOrderByOrden(politicaId)
-                .stream().findFirst()
+        // Flujos raíz = flujos sin relaciones condicionales entrantes
+        Set<String> hijosCondicionales = obtenerHijosCondicionales(politicaId);
+        Flujo primerFlujo = flujoRepository.findByPoliticaIdOrderByOrden(politicaId).stream()
+                .filter(f -> !hijosCondicionales.contains(f.getId()))
+                .findFirst()
                 .orElseThrow(() -> new WorkflowException("La política no tiene flujos configurados"));
 
         Actividad primeraActividad = crearActividad(primerFlujo, "activo");
@@ -97,7 +100,7 @@ public class WorkflowService {
         actividadActiva.setFechaFin(LocalDateTime.now());
         actividadActiva.setObservacion(observacion);
 
-        // Determinar siguiente flujo
+        // Determinar siguiente flujo usando las relaciones
         Flujo siguienteFlujo = determinarSiguienteFlujo(
                 tramite.getPoliticaId(),
                 actividadActiva.getFlujoId(),
@@ -109,7 +112,6 @@ public class WorkflowService {
         if (siguienteFlujo != null) {
             Actividad nuevaActividad = crearActividad(siguienteFlujo, "activo");
             tramite.getActividades().add(nuevaActividad);
-            // Notificar a todos los usuarios del departamento responsable
             if (siguienteFlujo.getDepartamentoId() != null) {
                 usuarioRepository.findByDepartamentoId(siguienteFlujo.getDepartamentoId())
                         .forEach(u -> enviarNotificacion(u.getId(), tramiteId, "ASIGNACION",
@@ -129,34 +131,49 @@ public class WorkflowService {
         return tramite;
     }
 
-    /** Determina el siguiente flujo según condiciones o por orden secuencial */
+    /**
+     * Determina el siguiente flujo usando las relaciones:
+     * 1. Evalúa relaciones condicionales salientes (ramas) — prioridad por condición
+     * 2. Evalúa relaciones de tipo "siguiente" (convergencia)
+     * 3. Fallback: siguiente flujo raíz por orden ascendente
+     */
     public Flujo determinarSiguienteFlujo(String politicaId, String flujoActualId, List<DatoForm> datosForm) {
-        List<Flujo> hijos = flujoRepository.findByFlujoPadreId(flujoActualId);
+        List<FlujoRelacion> salientes = relacionRepository.findByPadreId(flujoActualId);
 
-        if (!hijos.isEmpty()) {
-            Flujo incondicional = null;
-            for (Flujo hijo : hijos) {
-                if (hijo.getCondicionCampo() != null && hijo.getCondicionValor() != null) {
-                    // Hijo condicional: evalúa si los datosForm coinciden
+        // 1. Ramas condicionales — evaluar primero las que tienen condición explícita
+        FlujoRelacion sinCondicion = null;
+        for (FlujoRelacion rel : salientes) {
+            if ("condicional".equals(rel.getTipo())) {
+                if (rel.getCondicionCampo() != null && rel.getCondicionValor() != null) {
                     boolean coincide = datosForm.stream().anyMatch(d ->
-                            hijo.getCondicionCampo().equalsIgnoreCase(d.getEtiqueta()) &&
-                            hijo.getCondicionValor().equalsIgnoreCase(d.getValor()));
-                    if (coincide) return hijo;
-                } else if (incondicional == null) {
-                    // Hijo sin condición = camino por defecto si ninguno condicional coincide
-                    incondicional = hijo;
+                            rel.getCondicionCampo().equalsIgnoreCase(d.getEtiqueta()) &&
+                            rel.getCondicionValor().equalsIgnoreCase(d.getValor()));
+                    if (coincide) return flujoRepository.findById(rel.getHijoId()).orElse(null);
+                } else if (sinCondicion == null) {
+                    sinCondicion = rel;
                 }
             }
-            if (incondicional != null) return incondicional;
+        }
+        if (sinCondicion != null) {
+            return flujoRepository.findById(sinCondicion.getHijoId()).orElse(null);
         }
 
-        // Sin hijos o sin coincidencia → siguiente flujo raíz por orden
+        // 2. Relación "siguiente" explícita (convergencia de múltiples ramas)
+        for (FlujoRelacion rel : salientes) {
+            if ("siguiente".equals(rel.getTipo())) {
+                return flujoRepository.findById(rel.getHijoId()).orElse(null);
+            }
+        }
+
+        // 3. Fallback: siguiente flujo raíz (sin relaciones condicionales entrantes) por orden
         Flujo flujoActual = flujoRepository.findById(flujoActualId).orElse(null);
         if (flujoActual == null) return null;
 
-        return flujoRepository
-                .findFirstByPoliticaIdAndFlujoPadreIdIsNullAndOrdenGreaterThanOrderByOrden(
-                        politicaId, flujoActual.getOrden())
+        Set<String> hijosCondicionales = obtenerHijosCondicionales(politicaId);
+        return flujoRepository.findByPoliticaIdOrderByOrden(politicaId).stream()
+                .filter(f -> !hijosCondicionales.contains(f.getId()))
+                .filter(f -> f.getOrden() > flujoActual.getOrden())
+                .findFirst()
                 .orElse(null);
     }
 
@@ -239,27 +256,21 @@ public class WorkflowService {
         return tramite;
     }
 
-    /** Retorna un trámite por su ID */
-    public Tramite obtener(String tramiteId) {
-        return obtenerTramite(tramiteId);
-    }
+    public Tramite obtener(String tramiteId) { return obtenerTramite(tramiteId); }
 
-    /** Retorna trámites activos de una empresa */
     public List<Tramite> obtenerActivos(String empresaId) {
         return tramiteRepository.findByEmpresaIdAndEstadoIn(empresaId, List.of("proceso", "urgente", "pendiente"));
     }
 
-    /** Retorna todos los trámites de una empresa sin importar el estado */
     public List<Tramite> obtenerTodos(String empresaId) {
         return tramiteRepository.findByEmpresaId(empresaId);
     }
 
-    /** Retorna trámites con prioridad urgente de una empresa */
     public List<Tramite> obtenerUrgentes(String empresaId) {
         return tramiteRepository.findByEmpresaIdAndPrioridad(empresaId, "urgente");
     }
 
-    /** Retorna trámites donde el usuario es cliente o recepcionista */
+    /** Retorna trámites donde el usuario es cliente, recepcionista o tiene actividad activa en su departamento */
     public List<Tramite> obtenerMisTramites(String usuarioId) {
         List<Tramite> comoCliente = tramiteRepository.findByClienteId(usuarioId);
         List<Tramite> comoRecepcionista = tramiteRepository.findByRecepcionistaId(usuarioId);
@@ -268,7 +279,6 @@ public class WorkflowService {
         for (Tramite t : comoCliente) { if (ids.add(t.getId())) todos.add(t); }
         for (Tramite t : comoRecepcionista) { if (ids.add(t.getId())) todos.add(t); }
 
-        // Incluir tramites donde hay una actividad activa asignada al departamento del usuario
         usuarioRepository.findById(usuarioId).ifPresent(usuario -> {
             if (usuario.getDepartamentoId() != null) {
                 tramiteRepository.findAll().stream()
@@ -282,7 +292,16 @@ public class WorkflowService {
         return todos;
     }
 
-    // ── Métodos privados de soporte ──────────────────────────────────────────
+    // ── Métodos privados ──────────────────────────────────────────────────────
+
+    /** Retorna el conjunto de IDs de flujos que son hijos condicionales en una política */
+    private Set<String> obtenerHijosCondicionales(String politicaId) {
+        Set<String> ids = new HashSet<>();
+        relacionRepository.findByPoliticaId(politicaId).stream()
+                .filter(r -> "condicional".equals(r.getTipo()))
+                .forEach(r -> ids.add(r.getHijoId()));
+        return ids;
+    }
 
     private Tramite obtenerTramite(String tramiteId) {
         return tramiteRepository.findById(tramiteId)
@@ -311,7 +330,6 @@ public class WorkflowService {
         return flujoRepository.findById(flujoId).map(Flujo::getFormularioId).orElse(null);
     }
 
-    /** Emite el estado actualizado de un trámite al canal WebSocket */
     private void emitirEstadoTramite(Tramite tramite) {
         Actividad actividadActiva = tramite.getActividades().stream()
                 .filter(a -> "activo".equals(a.getEstado()))
@@ -329,37 +347,25 @@ public class WorkflowService {
         mensajeria.convertAndSend("/topic/tramite/" + tramite.getId() + "/estado", respuesta);
     }
 
-    /** Emite la lista de trámites activos al panel de la empresa */
     private void emitirPanelEmpresa(String empresaId) {
         if (empresaId == null) return;
-        List<Tramite> activos = obtenerActivos(empresaId);
-        mensajeria.convertAndSend("/topic/panel/" + empresaId, activos);
+        mensajeria.convertAndSend("/topic/panel/" + empresaId, obtenerActivos(empresaId));
     }
 
-    /** Crea y persiste una notificación y la envía por WebSocket */
     private void enviarNotificacion(String usuarioId, String tramiteId, String tipo, String mensaje) {
         if (usuarioId == null) return;
         Notificacion notif = Notificacion.builder()
-                .usuarioId(usuarioId)
-                .tramiteId(tramiteId)
-                .tipo(tipo)
-                .mensaje(mensaje)
-                .leida(false)
-                .build();
+                .usuarioId(usuarioId).tramiteId(tramiteId)
+                .tipo(tipo).mensaje(mensaje).leida(false).build();
         notificacionRepository.save(notif);
         mensajeria.convertAndSend("/queue/notificaciones/" + usuarioId, notif);
     }
 
-    /** Registra una entrada en la bitácora del trámite */
     private void registrarBitacora(String tramiteId, String usuarioId, String accion,
                                    String descripcion, String estadoAnterior, String estadoNuevo) {
         bitacoraRepository.save(Bitacora.builder()
-                .tramiteId(tramiteId)
-                .usuarioId(usuarioId)
-                .accion(accion)
-                .descripcion(descripcion)
-                .estadoAnterior(estadoAnterior)
-                .estadoNuevo(estadoNuevo)
+                .tramiteId(tramiteId).usuarioId(usuarioId).accion(accion)
+                .descripcion(descripcion).estadoAnterior(estadoAnterior).estadoNuevo(estadoNuevo)
                 .build());
     }
 }

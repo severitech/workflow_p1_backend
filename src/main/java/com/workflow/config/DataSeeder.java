@@ -28,6 +28,7 @@ public class DataSeeder implements CommandLineRunner {
     private final FormularioRepository formularioRepository;
     private final PoliticaNegocioRepository politicaRepository;
     private final FlujoRepository flujoRepository;
+    private final FlujoRelacionRepository flujoRelacionRepository;
     private final TramiteRepository tramiteRepository;
     private final BitacoraRepository bitacoraRepository;
     private final NotificacionRepository notificacionRepository;
@@ -42,23 +43,18 @@ public class DataSeeder implements CommandLineRunner {
     private static final String DEP_REC3     = "dep_005";
     private static final String DEP_REC4     = "dep_006";
     private static final String DEP_REC5     = "dep_007";
-    // Roles — solo 3
     private static final String ROL_CLI      = "rol_001";
     private static final String ROL_REC      = "rol_002";
     private static final String ROL_ADM      = "rol_003";
-    // Usuarios — administradores
-    private static final String USR_JORGE    = "usr_001";  // admin1
-    private static final String USR_CARLOS   = "usr_002";  // admin2
-    // Usuarios — clientes
-    private static final String USR_ROBERTO  = "usr_003";  // cliente1
-    private static final String USR_LUISA    = "usr_004";  // cliente2
-    // Usuarios — recepcionistas (cada una en su propio departamento)
-    private static final String USR_MARIA    = "usr_005";  // recepcion1
-    private static final String USR_ANA      = "usr_006";  // recepcion2
-    private static final String USR_SOFIA    = "usr_007";  // recepcion3
-    private static final String USR_ELENA    = "usr_008";  // recepcion4
-    private static final String USR_ROSA     = "usr_009";  // recepcion5
-    // Tipos de componente
+    private static final String USR_JORGE    = "usr_001";
+    private static final String USR_CARLOS   = "usr_002";
+    private static final String USR_ROBERTO  = "usr_003";
+    private static final String USR_LUISA    = "usr_004";
+    private static final String USR_MARIA    = "usr_005";
+    private static final String USR_ANA      = "usr_006";
+    private static final String USR_SOFIA    = "usr_007";
+    private static final String USR_ELENA    = "usr_008";
+    private static final String USR_ROSA     = "usr_009";
     private static final String TC_TEXTO     = "tc_001";
     private static final String TC_TEXTAREA  = "tc_002";
     private static final String TC_SELECT    = "tc_003";
@@ -66,13 +62,11 @@ public class DataSeeder implements CommandLineRunner {
     private static final String TC_FECHA     = "tc_005";
     private static final String TC_ARCHIVO   = "tc_006";
     private static final String TC_NUMERO    = "tc_007";
-    // Formularios
     private static final String FORM_DATOS   = "form_001";
     private static final String FORM_CREDITO = "form_002";
     private static final String FORM_EVAL    = "form_003";
     private static final String FORM_CIERRE  = "form_004";
     private static final String FORM_MEDIDOR = "form_005";
-    // Componentes
     private static final String CMP_NOMBRE   = "cmp_001";
     private static final String CMP_CI       = "cmp_002";
     private static final String CMP_TEL      = "cmp_003";
@@ -84,7 +78,6 @@ public class DataSeeder implements CommandLineRunner {
     private static final String CMP_DOC      = "cmp_009";
     private static final String CMP_MEDIDOR  = "cmp_010";
     private static final String CMP_UBIC     = "cmp_011";
-    // Políticas
     private static final String POL_MEDIDOR  = "pol_001";
     private static final String POL_CREDITO  = "pol_002";
     // Flujos
@@ -106,11 +99,11 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        // Limpia todas las colecciones para garantizar datos frescos en cada arranque dev
         log.info("[DataSeeder] Limpiando colecciones existentes...");
         notificacionRepository.deleteAll();
         bitacoraRepository.deleteAll();
         tramiteRepository.deleteAll();
+        flujoRelacionRepository.deleteAll();
         flujoRepository.deleteAll();
         politicaRepository.deleteAll();
         formularioRepository.deleteAll();
@@ -133,46 +126,41 @@ public class DataSeeder implements CommandLineRunner {
         String passHash = encoderPassword.encode("123456");
 
         // ── Empresa ───────────────────────────────────────────
-        Empresa empresa = empresaRepository.save(Empresa.builder()
+        empresaRepository.save(Empresa.builder()
                 .id(EMP1).nombre("CRE Bolivia").nit("1234567890")
                 .direccion("Av. Cañoto 1234, Santa Cruz de la Sierra")
                 .telefono("591-3-3333333").correo("info@crebolivia.com").activo(true).build());
-        log.info("[DataSeeder] Empresa: id={}", empresa.getId());
+        log.info("[DataSeeder] Empresa creada: {}", EMP1);
 
         // ── Departamentos ─────────────────────────────────────
         departamentoRepository.saveAll(List.of(
-                dep(DEP_REC,  "Recepción 1",      "Recepción — ventanilla 1", EMP1),
-                dep(DEP_TEC,  "Técnico",           "Inspecciones y evaluaciones", EMP1),
-                dep(DEP_ADM,  "Administración",    "Gestión y administración",    EMP1),
-                dep(DEP_REC2, "Recepción 2",       "Recepción — ventanilla 2", EMP1),
-                dep(DEP_REC3, "Recepción 3",       "Recepción — ventanilla 3", EMP1),
-                dep(DEP_REC4, "Recepción 4",       "Recepción — ventanilla 4", EMP1),
-                dep(DEP_REC5, "Recepción 5",       "Recepción — ventanilla 5", EMP1)
+                dep(DEP_REC,  "Recepción 1",   "Recepción — ventanilla 1", EMP1),
+                dep(DEP_TEC,  "Técnico",        "Inspecciones y evaluaciones", EMP1),
+                dep(DEP_ADM,  "Administración", "Gestión y administración", EMP1),
+                dep(DEP_REC2, "Recepción 2",    "Recepción — ventanilla 2", EMP1),
+                dep(DEP_REC3, "Recepción 3",    "Recepción — ventanilla 3", EMP1),
+                dep(DEP_REC4, "Recepción 4",    "Recepción — ventanilla 4", EMP1),
+                dep(DEP_REC5, "Recepción 5",    "Recepción — ventanilla 5", EMP1)
         ));
-        log.info("[DataSeeder] Departamentos creados: {}, {}, {}, {}, {}, {}, {}", DEP_REC, DEP_TEC, DEP_ADM, DEP_REC2, DEP_REC3, DEP_REC4, DEP_REC5);
 
-        // ── Roles — solo 3 ────────────────────────────────────
+        // ── Roles ─────────────────────────────────────────────
         rolRepository.saveAll(List.of(
                 rol(ROL_CLI, "cliente",       "Ciudadano que solicita un trámite"),
                 rol(ROL_REC, "recepcionista", "Recibe y gestiona trámites"),
                 rol(ROL_ADM, "administrador", "Administrador con acceso completo")
         ));
-        log.info("[DataSeeder] Roles: cliente={}, recepcionista={}, administrador={}", ROL_CLI, ROL_REC, ROL_ADM);
 
         // ── Usuarios ──────────────────────────────────────────
         usuarioRepository.saveAll(List.of(
-                // Administradores
-                usr(USR_JORGE,   "Jorge",   "López",    "admin1@crebolivia.com",    passHash, ROL_ADM, EMP1, DEP_ADM),
-                usr(USR_CARLOS,  "Carlos",  "Pérez",    "admin2@crebolivia.com",    passHash, ROL_ADM, EMP1, DEP_ADM),
-                // Clientes
-                usr(USR_ROBERTO, "Roberto", "Flores",   "cliente1@crebolivia.com",  passHash, ROL_CLI, EMP1, null),
-                usr(USR_LUISA,   "Luisa",   "Méndez",   "cliente2@crebolivia.com",  passHash, ROL_CLI, EMP1, null),
-                // Recepcionistas — cada una en su propio departamento de recepción
-                usr(USR_MARIA,   "María",   "García",   "recepcion1@crebolivia.com", passHash, ROL_REC, EMP1, DEP_REC),
-                usr(USR_ANA,     "Ana",     "Torres",   "recepcion2@crebolivia.com", passHash, ROL_REC, EMP1, DEP_REC2),
-                usr(USR_SOFIA,   "Sofía",   "Vargas",   "recepcion3@crebolivia.com", passHash, ROL_REC, EMP1, DEP_REC3),
-                usr(USR_ELENA,   "Elena",   "Rojas",    "recepcion4@crebolivia.com", passHash, ROL_REC, EMP1, DEP_REC4),
-                usr(USR_ROSA,    "Rosa",    "Mamani",   "recepcion5@crebolivia.com", passHash, ROL_REC, EMP1, DEP_REC5)
+                usr(USR_JORGE,   "Jorge",   "López",  "admin1@crebolivia.com",     passHash, ROL_ADM, EMP1, DEP_ADM),
+                usr(USR_CARLOS,  "Carlos",  "Pérez",  "admin2@crebolivia.com",     passHash, ROL_ADM, EMP1, DEP_ADM),
+                usr(USR_ROBERTO, "Roberto", "Flores", "cliente1@crebolivia.com",   passHash, ROL_CLI, EMP1, null),
+                usr(USR_LUISA,   "Luisa",   "Méndez", "cliente2@crebolivia.com",   passHash, ROL_CLI, EMP1, null),
+                usr(USR_MARIA,   "María",   "García", "recepcion1@crebolivia.com", passHash, ROL_REC, EMP1, DEP_REC),
+                usr(USR_ANA,     "Ana",     "Torres", "recepcion2@crebolivia.com", passHash, ROL_REC, EMP1, DEP_REC2),
+                usr(USR_SOFIA,   "Sofía",   "Vargas", "recepcion3@crebolivia.com", passHash, ROL_REC, EMP1, DEP_REC3),
+                usr(USR_ELENA,   "Elena",   "Rojas",  "recepcion4@crebolivia.com", passHash, ROL_REC, EMP1, DEP_REC4),
+                usr(USR_ROSA,    "Rosa",    "Mamani", "recepcion5@crebolivia.com", passHash, ROL_REC, EMP1, DEP_REC5)
         ));
         log.info("[DataSeeder] Usuarios creados: 2 admin, 2 clientes, 5 recepcionistas");
 
@@ -192,10 +180,10 @@ public class DataSeeder implements CommandLineRunner {
                 Formulario.builder().id(FORM_DATOS).nombre("Datos del cliente")
                         .descripcion("Información básica del solicitante").empresaId(EMP1).activo(true)
                         .componentes(List.of(
-                                cmp(CMP_NOMBRE, TC_TEXTO,    "Nombre completo",       "Ej: Juan Pérez",    1, true,  null),
-                                cmp(CMP_CI,     TC_NUMERO,   "Cédula de identidad",   "Ej: 12345678",      2, true,  null),
-                                cmp(CMP_TEL,    TC_TEXTO,    "Teléfono",              "Ej: 70000000",      3, true,  null),
-                                cmp(CMP_DIR,    TC_TEXTAREA, "Dirección",             "Calle, barrio...",  4, true,  null)
+                                cmp(CMP_NOMBRE, TC_TEXTO,    "Nombre completo",     "Ej: Juan Pérez",   1, true,  null),
+                                cmp(CMP_CI,     TC_NUMERO,   "Cédula de identidad", "Ej: 12345678",     2, true,  null),
+                                cmp(CMP_TEL,    TC_TEXTO,    "Teléfono",            "Ej: 70000000",     3, true,  null),
+                                cmp(CMP_DIR,    TC_TEXTAREA, "Dirección",           "Calle, barrio...", 4, true,  null)
                         )).build(),
                 Formulario.builder().id(FORM_CREDITO).nombre("Tipo de crédito")
                         .descripcion("Selección del tipo de crédito").empresaId(EMP1).activo(true)
@@ -206,8 +194,8 @@ public class DataSeeder implements CommandLineRunner {
                 Formulario.builder().id(FORM_EVAL).nombre("Evaluación")
                         .descripcion("Resultados de la evaluación").empresaId(EMP1).activo(true)
                         .componentes(List.of(
-                                cmp(CMP_OBS,      TC_TEXTAREA, "Observaciones",       "Describa hallazgos...", 1, false, null),
-                                cmp(CMP_APROBADO, TC_BOOLEAN,  "Aprobado",            "",                      2, true,  null)
+                                cmp(CMP_OBS,      TC_TEXTAREA, "Observaciones", "Describa hallazgos...", 1, false, null),
+                                cmp(CMP_APROBADO, TC_BOOLEAN,  "Aprobado",      "",                      2, true,  null)
                         )).build(),
                 Formulario.builder().id(FORM_CIERRE).nombre("Cierre de trámite")
                         .descripcion("Documentación final").empresaId(EMP1).activo(true)
@@ -234,35 +222,47 @@ public class DataSeeder implements CommandLineRunner {
                         .tipo("secuencial").estado("activa").version(1)
                         .empresaId(EMP1).creadoPorId(USR_JORGE).build()
         ));
-        log.info("[DataSeeder] Políticas creadas: {}, {}", POL_MEDIDOR, POL_CREDITO);
 
-        // ── Flujos ────────────────────────────────────────────
+        // ── Flujos — sin campos de relación (los flujos son nodos puros) ────
         flujoRepository.saveAll(List.of(
-                // Medidor — 3 pasos secuenciales
-                flu(FLU_REC,     POL_MEDIDOR, FORM_MEDIDOR,  1, true, null,       null,               null,       DEP_REC),
-                flu(FLU_TEC,     POL_MEDIDOR, FORM_EVAL,     2, true, null,       null,               null,       DEP_TEC),
-                flu(FLU_CIERREM, POL_MEDIDOR, FORM_CIERRE,   3, true, null,       null,               null,       DEP_REC),
+                // Medidor — 3 pasos raíz secuenciales
+                flu(FLU_REC,     POL_MEDIDOR, FORM_MEDIDOR, 1, true, DEP_REC),
+                flu(FLU_TEC,     POL_MEDIDOR, FORM_EVAL,    2, true, DEP_TEC),
+                flu(FLU_CIERREM, POL_MEDIDOR, FORM_CIERRE,  3, true, DEP_REC),
                 // Crédito — raíces
-                flu(FLU_DATOS,   POL_CREDITO, FORM_DATOS,    1, true, null,       null,               null,       DEP_REC),
-                flu(FLU_TIPO_CR, POL_CREDITO, FORM_CREDITO,  2, true, null,       null,               null,       DEP_REC),
-                // Hijos condicionales
-                flu(FLU_VIVIEN,  POL_CREDITO, FORM_EVAL,     3, true, FLU_TIPO_CR,"Tipo de crédito",  "vivienda", DEP_ADM),
-                flu(FLU_EMPRESA, POL_CREDITO, FORM_EVAL,     3, true, FLU_TIPO_CR,"Tipo de crédito",  "empresa",  DEP_ADM),
-                flu(FLU_VEHIC,   POL_CREDITO, FORM_EVAL,     3, true, FLU_TIPO_CR,"Tipo de crédito",  "vehiculo", DEP_TEC),
-                flu(FLU_CIERREC, POL_CREDITO, FORM_CIERRE,   4, true, null,       null,               null,       DEP_REC)
+                flu(FLU_DATOS,   POL_CREDITO, FORM_DATOS,   1, true, DEP_REC),
+                flu(FLU_TIPO_CR, POL_CREDITO, FORM_CREDITO, 2, true, DEP_REC),
+                // Hijos condicionales (múltiples padres posibles, múltiples hijos posibles)
+                flu(FLU_VIVIEN,  POL_CREDITO, FORM_EVAL,    3, true, DEP_ADM),
+                flu(FLU_EMPRESA, POL_CREDITO, FORM_EVAL,    3, true, DEP_ADM),
+                flu(FLU_VEHIC,   POL_CREDITO, FORM_EVAL,    3, true, DEP_TEC),
+                flu(FLU_CIERREC, POL_CREDITO, FORM_CIERRE,  4, true, DEP_REC)
         ));
-        log.info("[DataSeeder] Flujos creados (incluye 3 flujos condicionales)");
+        log.info("[DataSeeder] Flujos creados (9 nodos)");
+
+        // ── Relaciones de flujo — muchos-a-muchos via FlujoRelacion ────────
+        flujoRelacionRepository.saveAll(List.of(
+                // Crédito: FLU_TIPO_CR → hijos condicionales (1 padre con 3 hijos)
+                rel("rel_001", POL_CREDITO, FLU_TIPO_CR, FLU_VIVIEN,  "Tipo de crédito", "vivienda", "condicional"),
+                rel("rel_002", POL_CREDITO, FLU_TIPO_CR, FLU_EMPRESA, "Tipo de crédito", "empresa",  "condicional"),
+                rel("rel_003", POL_CREDITO, FLU_TIPO_CR, FLU_VEHIC,   "Tipo de crédito", "vehiculo", "condicional"),
+                // Crédito: hijos convergen en FLU_CIERREC via relación "siguiente"
+                // (3 padres distintos apuntan al mismo hijo — muchos padres, 1 hijo)
+                rel("rel_004", POL_CREDITO, FLU_VIVIEN,  FLU_CIERREC, null, null, "siguiente"),
+                rel("rel_005", POL_CREDITO, FLU_EMPRESA, FLU_CIERREC, null, null, "siguiente"),
+                rel("rel_006", POL_CREDITO, FLU_VEHIC,   FLU_CIERREC, null, null, "siguiente")
+        ));
+        log.info("[DataSeeder] Relaciones creadas: 3 condicionales + 3 convergencias");
 
         // ── Trámites ──────────────────────────────────────────
         tramiteRepository.saveAll(List.of(
 
-            // TRA-001: Roberto — medidor — EN PROCESO
             Tramite.builder().id(TRA1).politicaId(POL_MEDIDOR)
                 .clienteId(USR_ROBERTO).recepcionistaId(USR_MARIA).empresaId(EMP1)
                 .estado("proceso").prioridad("normal").fecha(h24)
                 .actividades(List.of(
                     act("act_001", FLU_REC, USR_MARIA, DEP_REC, "Recepción", "completado", h24, h12,
-                        "Documentos recibidos correctamente",
+                        "Documentos recibidos",
                         datosForm(FORM_MEDIDOR, "completado", h12, List.of(
                             dato(CMP_MEDIDOR, "Número de medidor actual", "MED-78432"),
                             dato(CMP_UBIC, "Ubicación exacta del domicilio", "Equipetrol, Calle 3 Este #456")
@@ -274,7 +274,6 @@ public class DataSeeder implements CommandLineRunner {
                         ), List.of()))
                 )).build(),
 
-            // TRA-002: Luisa — medidor — COMPLETADO
             Tramite.builder().id(TRA2).politicaId(POL_MEDIDOR)
                 .clienteId(USR_LUISA).recepcionistaId(USR_MARIA).empresaId(EMP1)
                 .estado("completado").prioridad("normal").fecha(h48).fechaFin(h12)
@@ -288,17 +287,16 @@ public class DataSeeder implements CommandLineRunner {
                     act("act_004", FLU_TEC, USR_CARLOS, DEP_TEC, "Evaluación técnica", "completado", h48, h24,
                         "Instalación viable",
                         datosForm(FORM_EVAL, "completado", h24, List.of(
-                            dato(CMP_OBS,      "Observaciones", "Sin observaciones, instalación estándar"),
+                            dato(CMP_OBS,      "Observaciones", "Sin observaciones"),
                             dato(CMP_APROBADO, "Aprobado",      "true")
                         ), List.of())),
                     act("act_005", FLU_CIERREM, USR_MARIA, DEP_REC, "Cierre", "completado", h24, h12,
-                        "Trámite cerrado correctamente",
+                        "Trámite cerrado",
                         datosForm(FORM_CIERRE, "completado", h12, List.of(
                             dato(CMP_DOC, "Documento de cierre", "acta_cierre_tra002.pdf")
                         ), List.of()))
                 )).build(),
 
-            // TRA-003: Roberto — medidor — URGENTE
             Tramite.builder().id(TRA3).politicaId(POL_MEDIDOR)
                 .clienteId(USR_ROBERTO).recepcionistaId(USR_ANA).empresaId(EMP1)
                 .estado("urgente").prioridad("urgente").fecha(h48)
@@ -316,7 +314,6 @@ public class DataSeeder implements CommandLineRunner {
                         )))
                 )).build(),
 
-            // TRA-004: Roberto — crédito — EN PROCESO
             Tramite.builder().id(TRA4).politicaId(POL_CREDITO)
                 .clienteId(USR_ROBERTO).recepcionistaId(USR_MARIA).empresaId(EMP1)
                 .estado("proceso").prioridad("normal").fecha(h6)
@@ -334,7 +331,6 @@ public class DataSeeder implements CommandLineRunner {
                         datosForm(FORM_CREDITO, "en_proceso", h2, List.of(), List.of()))
                 )).build(),
 
-            // TRA-005: Luisa — crédito — flujo condicional "vivienda" activado
             Tramite.builder().id(TRA5).politicaId(POL_CREDITO)
                 .clienteId(USR_LUISA).recepcionistaId(USR_MARIA).empresaId(EMP1)
                 .estado("proceso").prioridad("normal").fecha(h24)
@@ -353,7 +349,6 @@ public class DataSeeder implements CommandLineRunner {
                             dato(CMP_TIPO_CR, "Tipo de crédito",       "vivienda"),
                             dato(CMP_MONTO,   "Monto solicitado (Bs)", "150000")
                         ), List.of())),
-                    // Flujo condicional activado por condicionValor="vivienda"
                     act("act_012", FLU_VIVIEN, USR_JORGE, DEP_ADM, "Crédito vivienda", "activo", h6, null,
                         null,
                         datosForm(FORM_EVAL, "en_proceso", h6, List.of(), List.of()))
@@ -363,15 +358,15 @@ public class DataSeeder implements CommandLineRunner {
 
         // ── Bitácora ──────────────────────────────────────────
         bitacoraRepository.saveAll(List.of(
-                bitacora(TRA1, USR_MARIA,  "INICIAR",   "Trámite de medidor iniciado",               null,      "proceso",    h24),
-                bitacora(TRA1, USR_MARIA,  "AVANZAR",   "Recepción completada",                      "proceso", "proceso",    h12),
-                bitacora(TRA2, USR_MARIA,  "INICIAR",   "Trámite de medidor iniciado",               null,      "proceso",    h48),
-                bitacora(TRA2, USR_CARLOS, "AVANZAR",   "Evaluación técnica completada",             "proceso", "proceso",    h24),
-                bitacora(TRA2, USR_MARIA,  "COMPLETAR", "Trámite completado",                        "proceso", "completado", h12),
-                bitacora(TRA3, USR_MARIA,  "INICIAR",   "Trámite de medidor iniciado",               null,      "proceso",    h48),
-                bitacora(TRA3, USR_MARIA,  "URGENTE",   "Semáforo cambió a ROJO por tiempo vencido", "proceso", "urgente",    h6),
-                bitacora(TRA4, USR_MARIA,  "INICIAR",   "Crédito iniciado",                          null,      "proceso",    h6),
-                bitacora(TRA5, USR_MARIA,  "AVANZAR",   "Flujo condicional activado: vivienda",      "proceso", "proceso",    h6)
+                bitacora(TRA1, USR_MARIA,  "INICIAR",   "Trámite de medidor iniciado",      null,      "proceso",    h24),
+                bitacora(TRA1, USR_MARIA,  "AVANZAR",   "Recepción completada",              "proceso", "proceso",    h12),
+                bitacora(TRA2, USR_MARIA,  "INICIAR",   "Trámite de medidor iniciado",      null,      "proceso",    h48),
+                bitacora(TRA2, USR_CARLOS, "AVANZAR",   "Evaluación técnica completada",     "proceso", "proceso",    h24),
+                bitacora(TRA2, USR_MARIA,  "COMPLETAR", "Trámite completado",                "proceso", "completado", h12),
+                bitacora(TRA3, USR_MARIA,  "INICIAR",   "Trámite de medidor iniciado",      null,      "proceso",    h48),
+                bitacora(TRA3, USR_MARIA,  "URGENTE",   "Semáforo cambió a ROJO",           "proceso", "urgente",    h6),
+                bitacora(TRA4, USR_MARIA,  "INICIAR",   "Crédito iniciado",                  null,      "proceso",    h6),
+                bitacora(TRA5, USR_MARIA,  "AVANZAR",   "Flujo condicional activado: vivienda", "proceso", "proceso", h6)
         ));
 
         // ── Notificaciones ────────────────────────────────────
@@ -380,26 +375,20 @@ public class DataSeeder implements CommandLineRunner {
                 notif(USR_ROBERTO, TRA1, "AVANCE",          "Tu trámite de medidor avanzó a Evaluación técnica",      true,  h12),
                 notif(USR_LUISA,   TRA2, "COMPLETADO",      "Tu trámite de medidor fue completado exitosamente",      true,  h12),
                 notif(USR_MARIA,   TRA3, "SEMAFORO_ROJO",   "Trámite TRA-003 excedió el tiempo límite — URGENTE",     false, h6),
-                notif(USR_CARLOS,  TRA3, "SEMAFORO_ROJO",   "Tu actividad en TRA-003 está vencida — priorizar",       false, h6),
-                notif(USR_ROBERTO,  TRA3, "URGENTE",         "Tu trámite fue marcado como URGENTE por demora",         false, h6),
-                notif(USR_MARIA,   TRA4, "NUEVA_ACTIVIDAD", "Nuevo trámite de crédito ingresado para Roberto Flores", true,  h6),
-                notif(USR_JORGE,   TRA5, "NUEVA_ACTIVIDAD", "Se te asignó evaluación de crédito vivienda — TRA-005", false, h1),
-                notif(USR_LUISA,   TRA5, "AVANCE",          "Tu solicitud de crédito avanzó a revisión — TRA-005",    false, h1)
+                notif(USR_CARLOS,  TRA3, "SEMAFORO_ROJO",   "Tu actividad en TRA-003 está vencida",                   false, h6),
+                notif(USR_ROBERTO, TRA3, "URGENTE",         "Tu trámite fue marcado como URGENTE por demora",         false, h6),
+                notif(USR_MARIA,   TRA4, "NUEVA_ACTIVIDAD", "Nuevo trámite de crédito ingresado",                     true,  h6),
+                notif(USR_JORGE,   TRA5, "NUEVA_ACTIVIDAD", "Se te asignó evaluación de crédito vivienda",            false, h1),
+                notif(USR_LUISA,   TRA5, "AVANCE",          "Tu solicitud de crédito avanzó a revisión",              false, h1)
         ));
 
         log.info("[DataSeeder] ══════════════════════════════════════════════════");
         log.info("[DataSeeder]  Seeding completado — workflow_dev");
-        log.info("[DataSeeder]  Roles disponibles: cliente, recepcionista, administrador");
-        log.info("[DataSeeder]  Credenciales de prueba (password: 123456)");
-        log.info("[DataSeeder]  admin1@crebolivia.com      → administrador (admin1)");
-        log.info("[DataSeeder]  admin2@crebolivia.com      → administrador (admin2)");
-        log.info("[DataSeeder]  cliente1@crebolivia.com    → cliente (cliente1)");
-        log.info("[DataSeeder]  cliente2@crebolivia.com    → cliente (cliente2)");
-        log.info("[DataSeeder]  recepcion1@crebolivia.com  → recepcionista (Recepción 1)");
-        log.info("[DataSeeder]  recepcion2@crebolivia.com  → recepcionista (Recepción 2)");
-        log.info("[DataSeeder]  recepcion3@crebolivia.com  → recepcionista (Recepción 3)");
-        log.info("[DataSeeder]  recepcion4@crebolivia.com  → recepcionista (Recepción 4)");
-        log.info("[DataSeeder]  recepcion5@crebolivia.com  → recepcionista (Recepción 5)");
+        log.info("[DataSeeder]  Credenciales (password: 123456)");
+        log.info("[DataSeeder]  admin1@crebolivia.com  → administrador");
+        log.info("[DataSeeder]  admin2@crebolivia.com  → administrador");
+        log.info("[DataSeeder]  cliente1@crebolivia.com  → cliente");
+        log.info("[DataSeeder]  recepcion1@crebolivia.com → recepcionista");
         log.info("[DataSeeder] ══════════════════════════════════════════════════");
     }
 
@@ -430,13 +419,20 @@ public class DataSeeder implements CommandLineRunner {
                 .requerido(requerido).opciones(opciones).build();
     }
 
+    /** Crea un flujo puro sin campos de relación — las relaciones se crean por separado */
     private Flujo flu(String id, String politicaId, String formularioId,
-                      int orden, boolean obligatorio, String padreId,
-                      String condCampo, String condValor, String depId) {
+                      int orden, boolean obligatorio, String depId) {
         return Flujo.builder().id(id).politicaId(politicaId)
                 .formularioId(formularioId).orden(orden).esObligatorio(obligatorio)
-                .flujoPadreId(padreId).condicionCampo(condCampo).condicionValor(condValor)
                 .departamentoId(depId).build();
+    }
+
+    /** Crea una relación entre dos flujos */
+    private FlujoRelacion rel(String id, String politicaId, String padreId, String hijoId,
+                              String condCampo, String condValor, String tipo) {
+        return FlujoRelacion.builder().id(id).politicaId(politicaId)
+                .padreId(padreId).hijoId(hijoId)
+                .condicionCampo(condCampo).condicionValor(condValor).tipo(tipo).build();
     }
 
     private DatoForm dato(String componenteId, String etiqueta, String valor) {

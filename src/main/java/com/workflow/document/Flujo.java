@@ -24,15 +24,6 @@ public class Flujo {
     private int orden;
     private boolean esObligatorio;
 
-    /** Null si es raíz; apunta al flujo padre para flujos condicionales */
-    private String flujoPadreId;
-
-    /** Campo del formulario padre a evaluar */
-    private String condicionCampo;
-
-    /** Valor esperado del campo para activar este flujo */
-    private String condicionValor;
-
     /** Departamento responsable de esta actividad */
     private String departamentoId;
 
