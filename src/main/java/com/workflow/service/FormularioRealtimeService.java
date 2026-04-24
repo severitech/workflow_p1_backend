@@ -23,7 +23,7 @@ public class FormularioRealtimeService {
     /** Mapa de presencia: clave = tramiteId:actividadId → lista de usuarioIds activos */
     private final Map<String, List<String>> presencias = new ConcurrentHashMap<>();
 
-    /** Guarda el campo en MongoDB y emite el dato actualizado al canal del trámite */
+    /** Guarda el campo en MongoDB, emite el dato actualizado y notifica a los involucrados */
     public void procesarCampo(String tramiteId, String actividadId,
                                String componenteId, String etiqueta, String valor, String usuarioId) {
         DatoForm datoActualizado = workflowService.guardarCampoFormulario(
@@ -33,6 +33,8 @@ public class FormularioRealtimeService {
                 "/topic/tramite/" + tramiteId + "/formulario",
                 datoActualizado
         );
+
+        workflowService.notificarCampoGuardado(tramiteId, actividadId, etiqueta, usuarioId);
         log.debug("Campo guardado - trámite: {}, componente: {}", tramiteId, componenteId);
     }
 

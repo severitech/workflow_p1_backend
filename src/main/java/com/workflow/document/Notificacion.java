@@ -21,6 +21,7 @@ public class Notificacion {
     private String usuarioId;
 
     private String tramiteId;
+    private String actividadId;
     private String tipo;
     private String mensaje;
     private boolean leida;

@@ -403,12 +403,34 @@ public class WorkflowService {
     }
 
     private void enviarNotificacion(String usuarioId, String tramiteId, String tipo, String mensaje) {
+        enviarNotificacion(usuarioId, tramiteId, null, tipo, mensaje);
+    }
+
+    private void enviarNotificacion(String usuarioId, String tramiteId, String actividadId, String tipo, String mensaje) {
         if (usuarioId == null) return;
         Notificacion notif = Notificacion.builder()
-                .usuarioId(usuarioId).tramiteId(tramiteId)
+                .usuarioId(usuarioId).tramiteId(tramiteId).actividadId(actividadId)
                 .tipo(tipo).mensaje(mensaje).leida(false).build();
         notificacionRepository.save(notif);
         mensajeria.convertAndSend("/queue/notificaciones/" + usuarioId, notif);
+    }
+
+    /** Notifica al recepcionista y cliente que un campo fue guardado en el formulario */
+    public void notificarCampoGuardado(String tramiteId, String actividadId, String etiqueta, String usuarioQueGuardaId) {
+        try {
+            Tramite tramite = obtenerTramite(tramiteId);
+            String mensaje = "Campo \"" + etiqueta + "\" guardado en trámite " + tramiteId.substring(0, Math.min(8, tramiteId.length()));
+            // Notificar al recepcionista si es diferente al que guardó
+            if (tramite.getRecepcionistaId() != null && !tramite.getRecepcionistaId().equals(usuarioQueGuardaId)) {
+                enviarNotificacion(tramite.getRecepcionistaId(), tramiteId, actividadId, "CAMPO_GUARDADO", mensaje);
+            }
+            // Notificar al cliente si es diferente al que guardó
+            if (tramite.getClienteId() != null && !tramite.getClienteId().equals(usuarioQueGuardaId)) {
+                enviarNotificacion(tramite.getClienteId(), tramiteId, actividadId, "CAMPO_GUARDADO", mensaje);
+            }
+        } catch (Exception e) {
+            log.warn("No se pudo enviar notificación de campo guardado: {}", e.getMessage());
+        }
     }
 
     private void registrarBitacora(String tramiteId, String usuarioId, String accion,
