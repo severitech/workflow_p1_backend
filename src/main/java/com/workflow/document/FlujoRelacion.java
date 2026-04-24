@@ -35,7 +35,7 @@ public class FlujoRelacion {
     /** Valor esperado del campo para activar esta relación */
     private String condicionValor;
 
-    /** Tipo de relación: "condicional" para ramas, "siguiente" para convergencia */
+    /** Tipo: "condicional" ramas, "siguiente" convergencia, "paralelo" fork simultáneo, "iterativo" bucle con condición de salida */
     private String tipo;
 
     @CreatedDate

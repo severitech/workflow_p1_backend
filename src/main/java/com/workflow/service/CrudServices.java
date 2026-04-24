@@ -124,7 +124,7 @@ public class CrudServices {
 
     public PoliticaNegocio crearPolitica(PoliticaRequest req) {
         PoliticaNegocio politica = PoliticaNegocio.builder()
-                .nombre(req.getNombre()).descripcion(req.getDescripcion()).tipo(req.getTipo())
+                .nombre(req.getNombre()).descripcion(req.getDescripcion())
                 .estado("borrador").version(1).empresaId(req.getEmpresaId())
                 .creadoPorId(req.getCreadoPorId()).build();
         return politicaRepository.save(politica);
@@ -150,7 +150,6 @@ public class CrudServices {
             throw new WorkflowException("Solo se pueden editar políticas en estado borrador");
         }
         politica.setNombre(req.getNombre()); politica.setDescripcion(req.getDescripcion());
-        politica.setTipo(req.getTipo());
         return politicaRepository.save(politica);
     }
 
@@ -168,8 +167,7 @@ public class CrudServices {
         PoliticaNegocio original = obtenerPolitica(id);
         PoliticaNegocio nueva = PoliticaNegocio.builder()
                 .nombre(original.getNombre()).descripcion(original.getDescripcion())
-                .tipo(original.getTipo()).estado("borrador")
-                .version(original.getVersion() + 1)
+                .estado("borrador").version(original.getVersion() + 1)
                 .empresaId(original.getEmpresaId()).creadoPorId(original.getCreadoPorId()).build();
         nueva = politicaRepository.save(nueva);
 
@@ -218,20 +216,17 @@ public class CrudServices {
         return flujoRepository.findByPoliticaIdOrderByOrden(politicaId);
     }
 
-    /** Flujos raíz = flujos sin relaciones condicionales entrantes */
+    /** Flujos raíz = flujos sin ninguna relación entrante */
     public List<Flujo> listarFlujoRaiz(String politicaId) {
         Set<String> hijoIds = new HashSet<>();
-        relacionRepository.findByPoliticaId(politicaId).stream()
-                .filter(r -> "condicional".equals(r.getTipo()))
-                .forEach(r -> hijoIds.add(r.getHijoId()));
+        relacionRepository.findByPoliticaId(politicaId).forEach(r -> hijoIds.add(r.getHijoId()));
         return flujoRepository.findByPoliticaIdOrderByOrden(politicaId).stream()
                 .filter(f -> !hijoIds.contains(f.getId())).toList();
     }
 
-    /** Hijos de un flujo = flujos apuntados por relaciones condicionales con ese padre */
+    /** Hijos de un flujo = flujos apuntados por cualquier relación saliente de ese padre */
     public List<Flujo> listarHijos(String padreId) {
         return relacionRepository.findByPadreId(padreId).stream()
-                .filter(r -> "condicional".equals(r.getTipo()))
                 .map(r -> flujoRepository.findById(r.getHijoId()).orElse(null))
                 .filter(Objects::nonNull).toList();
     }

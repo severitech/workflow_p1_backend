@@ -20,9 +20,6 @@ public class PoliticaNegocio {
     private String nombre;
     private String descripcion;
 
-    /** Valores: secuencial, paralelo, iterativo */
-    private String tipo;
-
     /** Valores: borrador, activa, archivada */
     @Indexed
     private String estado;

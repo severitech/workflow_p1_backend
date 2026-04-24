@@ -14,9 +14,6 @@ public class PoliticaRequest {
 
     private String descripcion;
 
-    @NotBlank(message = "El tipo es obligatorio")
-    private String tipo;
-
     @NotBlank(message = "El empresaId es obligatorio")
     private String empresaId;
 

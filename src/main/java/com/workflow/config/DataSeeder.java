@@ -215,11 +215,11 @@ public class DataSeeder implements CommandLineRunner {
         politicaRepository.saveAll(List.of(
                 PoliticaNegocio.builder().id(POL_MEDIDOR).nombre("Solicitud de medidor eléctrico")
                         .descripcion("Proceso para instalación de medidor residencial")
-                        .tipo("secuencial").estado("activa").version(1)
+                        .estado("activa").version(1)
                         .empresaId(EMP1).creadoPorId(USR_JORGE).build(),
                 PoliticaNegocio.builder().id(POL_CREDITO).nombre("Solicitud de crédito")
                         .descripcion("Evaluación con flujos condicionales por tipo de crédito")
-                        .tipo("secuencial").estado("activa").version(1)
+                        .estado("activa").version(1)
                         .empresaId(EMP1).creadoPorId(USR_JORGE).build()
         ));
 

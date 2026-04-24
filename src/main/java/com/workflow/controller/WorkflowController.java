@@ -31,7 +31,7 @@ public class WorkflowController {
     public ResponseEntity<Tramite> avanzar(@PathVariable String tramiteId,
                                             @Valid @RequestBody AvanzarPasoRequest req) {
         return ResponseEntity.ok(workflowService.avanzarPaso(
-                tramiteId, req.getUsuarioId(), req.getObservacion(), req.getDatosForm()));
+                tramiteId, req.getActividadId(), req.getUsuarioId(), req.getObservacion(), req.getDatosForm()));
     }
 
     @PostMapping("/{tramiteId}/observar")
