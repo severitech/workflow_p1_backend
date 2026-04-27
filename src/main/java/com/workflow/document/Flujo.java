@@ -20,10 +20,10 @@ public class Flujo {
     @Indexed
     private String politicaId;
 
+    private String nombre;
     private String formularioId;
     private int orden;
     private boolean esObligatorio;
-
     /** Departamento responsable de esta actividad */
     private String departamentoId;
 

@@ -108,6 +108,13 @@ public class WorkflowService {
         actividadActiva.setFechaFin(LocalDateTime.now());
         actividadActiva.setObservacion(observacion);
 
+        // Notificar al recepcionista que el formulario fue completado
+        String nombrePaso = actividadActiva.getNombre() != null ? actividadActiva.getNombre() : "un paso";
+        String msgCompletado = "Formulario \"" + nombrePaso + "\" completado en el trámite " + tramiteId.substring(0, Math.min(8, tramiteId.length()));
+        if (tramite.getRecepcionistaId() != null && !tramite.getRecepcionistaId().equals(usuarioId)) {
+            enviarNotificacion(tramite.getRecepcionistaId(), tramiteId, actividadActiva.getId(), "FORMULARIO_COMPLETADO", msgCompletado);
+        }
+
         // Verificar si aún quedan otras actividades "activo" (flujos paralelos)
         boolean hayOtrasActivas = tramite.getActividades().stream()
                 .anyMatch(a -> "activo".equals(a.getEstado()));
@@ -122,19 +129,32 @@ public class WorkflowService {
             List<Flujo> siguientesFlujoss = determinarSiguientesFlujoss(
                     tramite.getPoliticaId(), actividadActiva.getFlujoId(), datosCompletos);
 
+            // Evitar duplicar actividades ya activas (convergencia de múltiples ramas)
+            Set<String> flujoIdsYaActivos = tramite.getActividades().stream()
+                    .filter(a -> "activo".equals(a.getEstado()))
+                    .map(Actividad::getFlujoId)
+                    .collect(java.util.stream.Collectors.toSet());
+
             if (!siguientesFlujoss.isEmpty()) {
                 for (Flujo sig : siguientesFlujoss) {
+                    if (flujoIdsYaActivos.contains(sig.getId())) continue;
                     Actividad nueva = crearActividad(sig, "activo");
                     tramite.getActividades().add(nueva);
                     if (sig.getDepartamentoId() != null) {
+                        String msgAsig = "Nueva actividad asignada: \"" + sig.getNombre() + "\" en trámite " + tramiteId.substring(0, Math.min(8, tramiteId.length()));
                         usuarioRepository.findByDepartamentoId(sig.getDepartamentoId())
-                                .forEach(u -> enviarNotificacion(u.getId(), tramiteId, "ASIGNACION",
-                                        "Se asignó una nueva actividad en el trámite " + tramiteId));
+                                .forEach(u -> enviarNotificacion(u.getId(), tramiteId, nueva.getId(), "ASIGNACION", msgAsig));
                     }
                 }
             } else {
                 tramite.setEstado("completado");
                 tramite.setFechaFin(LocalDateTime.now());
+                // Notificar al cliente y recepcionista que el trámite está completado
+                String msgFin = "El trámite " + tramiteId.substring(0, Math.min(8, tramiteId.length())) + " fue completado exitosamente";
+                enviarNotificacion(tramite.getClienteId(), tramiteId, "TRAMITE_COMPLETADO", msgFin);
+                if (tramite.getRecepcionistaId() != null) {
+                    enviarNotificacion(tramite.getRecepcionistaId(), tramiteId, "TRAMITE_COMPLETADO", msgFin);
+                }
             }
         }
 
@@ -201,13 +221,13 @@ public class WorkflowService {
                     .map(List::of).orElse(List.of());
         }
 
-        // 4. Siguiente — convergencia explícita
-        for (FlujoRelacion rel : salientes) {
-            if ("siguiente".equals(rel.getTipo())) {
-                return flujoRepository.findById(rel.getHijoId())
-                        .map(List::of).orElse(List.of());
-            }
-        }
+        // 4. Siguiente — si hay varios del mismo padre se tratan como fork paralelo
+        List<Flujo> siguientes = salientes.stream()
+                .filter(r -> "siguiente".equals(r.getTipo()))
+                .map(r -> flujoRepository.findById(r.getHijoId()).orElse(null))
+                .filter(Objects::nonNull)
+                .toList();
+        if (!siguientes.isEmpty()) return siguientes;
 
         // 5. Fallback: siguiente flujo raíz por orden
         Flujo flujoActual = flujoRepository.findById(flujoActualId).orElse(null);
@@ -361,7 +381,7 @@ public class WorkflowService {
                 .id(UUID.randomUUID().toString())
                 .flujoId(flujo.getId())
                 .departamentoId(flujo.getDepartamentoId())
-                .nombre(flujo.getFormularioId())
+                .nombre(flujo.getNombre() != null ? flujo.getNombre() : flujo.getFormularioId())
                 .estado(estado)
                 .fechaInicio("activo".equals(estado) ? LocalDateTime.now() : null)
                 .datosForm(DatosClienteForm.builder()
