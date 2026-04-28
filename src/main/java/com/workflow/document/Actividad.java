@@ -17,7 +17,6 @@ public class Actividad {
     private String flujoId;
     private String usuarioId;
     private String departamentoId;
-    private String nombre;
 
     /** Valores: espera, activo, completado, rechazado */
     private String estado;
