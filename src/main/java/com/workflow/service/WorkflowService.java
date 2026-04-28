@@ -112,7 +112,7 @@ public class WorkflowService {
         String nombrePaso = actividadActiva.getNombre() != null ? actividadActiva.getNombre() : "un paso";
         String msgCompletado = "Formulario \"" + nombrePaso + "\" completado en el trámite " + tramiteId.substring(0, Math.min(8, tramiteId.length()));
         if (tramite.getRecepcionistaId() != null && !tramite.getRecepcionistaId().equals(usuarioId)) {
-            enviarNotificacion(tramite.getRecepcionistaId(), tramiteId, actividadActiva.getId(), "FORMULARIO_COMPLETADO", msgCompletado);
+            enviarNotificacion(tramite.getRecepcionistaId(), tramiteId, actividadActiva.getId(), "FORMULARIO_COMPLETADO", msgCompletado, null);
         }
 
         // Verificar si aún quedan otras actividades "activo" (flujos paralelos)
@@ -140,10 +140,18 @@ public class WorkflowService {
                     if (flujoIdsYaActivos.contains(sig.getId())) continue;
                     Actividad nueva = crearActividad(sig, "activo");
                     tramite.getActividades().add(nueva);
+                    String nomActividad = nueva.getNombre() != null ? nueva.getNombre() : "nueva actividad";
+                    String sufijo = tramiteId.substring(0, Math.min(8, tramiteId.length()));
                     if (sig.getDepartamentoId() != null) {
-                        String msgAsig = "Nueva actividad asignada: \"" + sig.getNombre() + "\" en trámite " + tramiteId.substring(0, Math.min(8, tramiteId.length()));
+                        String msgAsig = "Nueva actividad asignada: \"" + nomActividad + "\" en trámite " + sufijo;
+                        String rutaAsig = "/formulario-tramite/" + tramiteId + "/" + nueva.getId();
                         usuarioRepository.findByDepartamentoId(sig.getDepartamentoId())
-                                .forEach(u -> enviarNotificacion(u.getId(), tramiteId, nueva.getId(), "ASIGNACION", msgAsig));
+                                .forEach(u -> enviarNotificacion(u.getId(), tramiteId, nueva.getId(), "ASIGNACION", msgAsig, rutaAsig));
+                    }
+                    // Notificar al cliente que su trámite avanzó al siguiente paso
+                    if (tramite.getClienteId() != null) {
+                        String msgCliente = "Tu trámite " + sufijo + " avanzó al paso: \"" + nomActividad + "\"";
+                        enviarNotificacion(tramite.getClienteId(), tramiteId, nueva.getId(), "TRAMITE_AVANZADO", msgCliente, "/mis-tramites");
                     }
                 }
             } else {
@@ -151,9 +159,9 @@ public class WorkflowService {
                 tramite.setFechaFin(LocalDateTime.now());
                 // Notificar al cliente y recepcionista que el trámite está completado
                 String msgFin = "El trámite " + tramiteId.substring(0, Math.min(8, tramiteId.length())) + " fue completado exitosamente";
-                enviarNotificacion(tramite.getClienteId(), tramiteId, "TRAMITE_COMPLETADO", msgFin);
+                enviarNotificacion(tramite.getClienteId(), tramiteId, "TRAMITE_COMPLETADO", msgFin, "/mis-tramites");
                 if (tramite.getRecepcionistaId() != null) {
-                    enviarNotificacion(tramite.getRecepcionistaId(), tramiteId, "TRAMITE_COMPLETADO", msgFin);
+                    enviarNotificacion(tramite.getRecepcionistaId(), tramiteId, "TRAMITE_COMPLETADO", msgFin, "/panel-recepcionista");
                 }
             }
         }
@@ -423,14 +431,18 @@ public class WorkflowService {
     }
 
     private void enviarNotificacion(String usuarioId, String tramiteId, String tipo, String mensaje) {
-        enviarNotificacion(usuarioId, tramiteId, null, tipo, mensaje);
+        enviarNotificacion(usuarioId, tramiteId, null, tipo, mensaje, null);
     }
 
-    private void enviarNotificacion(String usuarioId, String tramiteId, String actividadId, String tipo, String mensaje) {
+    private void enviarNotificacion(String usuarioId, String tramiteId, String tipo, String mensaje, String ruta) {
+        enviarNotificacion(usuarioId, tramiteId, null, tipo, mensaje, ruta);
+    }
+
+    private void enviarNotificacion(String usuarioId, String tramiteId, String actividadId, String tipo, String mensaje, String ruta) {
         if (usuarioId == null) return;
         Notificacion notif = Notificacion.builder()
                 .usuarioId(usuarioId).tramiteId(tramiteId).actividadId(actividadId)
-                .tipo(tipo).mensaje(mensaje).leida(false).build();
+                .tipo(tipo).mensaje(mensaje).leida(false).ruta(ruta).build();
         notificacionRepository.save(notif);
         mensajeria.convertAndSend("/queue/notificaciones/" + usuarioId, notif);
     }
@@ -442,11 +454,11 @@ public class WorkflowService {
             String mensaje = "Campo \"" + etiqueta + "\" guardado en trámite " + tramiteId.substring(0, Math.min(8, tramiteId.length()));
             // Notificar al recepcionista si es diferente al que guardó
             if (tramite.getRecepcionistaId() != null && !tramite.getRecepcionistaId().equals(usuarioQueGuardaId)) {
-                enviarNotificacion(tramite.getRecepcionistaId(), tramiteId, actividadId, "CAMPO_GUARDADO", mensaje);
+                enviarNotificacion(tramite.getRecepcionistaId(), tramiteId, actividadId, "CAMPO_GUARDADO", mensaje, null);
             }
             // Notificar al cliente si es diferente al que guardó
             if (tramite.getClienteId() != null && !tramite.getClienteId().equals(usuarioQueGuardaId)) {
-                enviarNotificacion(tramite.getClienteId(), tramiteId, actividadId, "CAMPO_GUARDADO", mensaje);
+                enviarNotificacion(tramite.getClienteId(), tramiteId, actividadId, "CAMPO_GUARDADO", mensaje, null);
             }
         } catch (Exception e) {
             log.warn("No se pudo enviar notificación de campo guardado: {}", e.getMessage());

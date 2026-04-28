@@ -34,7 +34,6 @@ public class FormularioRealtimeService {
                 datoActualizado
         );
 
-        workflowService.notificarCampoGuardado(tramiteId, actividadId, etiqueta, usuarioId);
         log.debug("Campo guardado - trámite: {}, componente: {}", tramiteId, componenteId);
     }
 

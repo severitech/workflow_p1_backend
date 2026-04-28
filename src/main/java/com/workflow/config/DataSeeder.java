@@ -16,7 +16,7 @@ import java.util.List;
 /** Carga datos sintéticos al iniciar con perfil dev — IDs fijos para referencias consistentes */
 @Slf4j
 @Component
-@Profile("dev")
+@Profile({"dev", "seed"})
 @RequiredArgsConstructor
 public class DataSeeder implements CommandLineRunner {
 

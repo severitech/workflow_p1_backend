@@ -25,6 +25,7 @@ public class Notificacion {
     private String tipo;
     private String mensaje;
     private boolean leida;
+    private String ruta;
 
     @CreatedDate
     private LocalDateTime fecha;
