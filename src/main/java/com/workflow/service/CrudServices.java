@@ -5,6 +5,7 @@ import com.workflow.dto.*;
 import com.workflow.exception.WorkflowException;
 import com.workflow.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -24,6 +25,7 @@ public class CrudServices {
     private final FlujoRelacionRepository relacionRepository;
     private final NotificacionRepository notificacionRepository;
     private final PasswordEncoder encoderPassword;
+    private final SimpMessagingTemplate mensajeria;
 
     // ── Empresas ─────────────────────────────────────────────────────────────
 
@@ -312,6 +314,34 @@ public class CrudServices {
                 .findByUsuarioIdAndLeidaFalseOrderByFechaDesc(usuarioId);
         pendientes.forEach(n -> n.setLeida(true));
         notificacionRepository.saveAll(pendientes);
+    }
+
+    /**
+     * Crea y envía una notificación por WS a todos los usuarios activos de una empresa.
+     * Si rolId no es nulo ni vacío, filtra solo ese rol.
+     * Retorna la cantidad de notificaciones enviadas.
+     */
+    public int broadcast(String empresaId, String rolId, String mensaje) {
+        List<Usuario> usuarios = (rolId != null && !rolId.isBlank())
+                ? usuarioRepository.findByEmpresaIdAndRolId(empresaId, rolId)
+                : usuarioRepository.findByEmpresaIdAndActivoTrue(empresaId);
+
+        List<Notificacion> notificaciones = usuarios.stream().map(u ->
+                Notificacion.builder()
+                        .usuarioId(u.getId())
+                        .tipo("broadcast")
+                        .mensaje(mensaje)
+                        .leida(false)
+                        .build()
+        ).toList();
+
+        notificacionRepository.saveAll(notificaciones);
+
+        notificaciones.forEach(n ->
+                mensajeria.convertAndSend("/queue/notificaciones/" + n.getUsuarioId(), n)
+        );
+
+        return notificaciones.size();
     }
 
     // ── Util ──────────────────────────────────────────────────────────────────

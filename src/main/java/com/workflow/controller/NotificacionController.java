@@ -41,4 +41,16 @@ public class NotificacionController {
         crudServices.marcarTodasLeidas(usuarioId);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/broadcast")
+    public ResponseEntity<Map<String, Integer>> broadcast(@RequestBody Map<String, String> body) {
+        String empresaId = body.get("empresaId");
+        String rolId     = body.getOrDefault("rolId", "");
+        String mensaje   = body.get("mensaje");
+        if (empresaId == null || mensaje == null || mensaje.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        int enviadas = crudServices.broadcast(empresaId, rolId, mensaje);
+        return ResponseEntity.ok(Map.of("enviadas", enviadas));
+    }
 }
