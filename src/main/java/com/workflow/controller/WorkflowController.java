@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/workflow")
@@ -48,8 +49,12 @@ public class WorkflowController {
     }
 
     @GetMapping("/empresa/{empresaId}/activos")
-    public ResponseEntity<List<Tramite>> activos(@PathVariable String empresaId) {
-        return ResponseEntity.ok(workflowService.obtenerActivos(empresaId));
+    public ResponseEntity<List<Tramite>> activos(
+            @PathVariable String empresaId,
+            @RequestParam(defaultValue = "50") int limite) {
+        List<Tramite> todos = workflowService.obtenerActivos(empresaId);
+        List<Tramite> resultado = todos.stream().limit(limite).collect(Collectors.toList());
+        return ResponseEntity.ok(resultado);
     }
 
     @GetMapping("/empresa/{empresaId}/todos")
