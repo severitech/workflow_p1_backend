@@ -32,6 +32,9 @@ public class DataSeeder implements CommandLineRunner {
     private final TramiteRepository tramiteRepository;
     private final BitacoraRepository bitacoraRepository;
     private final NotificacionRepository notificacionRepository;
+    private final DocumentoRepositorio documentoRepositorio;
+    private final PermisoDocumentoRepositorio permisoDocumentoRepositorio;
+    private final BitacoraDocumentoRepositorio bitacoraDocumentoRepositorio;
     private final PasswordEncoder encoderPassword;
 
     // ─── IDs fijos ────────────────────────────────────────────
@@ -80,16 +83,21 @@ public class DataSeeder implements CommandLineRunner {
     private static final String CMP_UBIC     = "cmp_011";
     private static final String POL_MEDIDOR  = "pol_001";
     private static final String POL_CREDITO  = "pol_002";
-    // Flujos
+    // Flujos — nodos de control UML (inicio/fin) + tareas
+    private static final String FLU_INI_MED  = "flu_000";
     private static final String FLU_REC      = "flu_001";
     private static final String FLU_TEC      = "flu_002";
     private static final String FLU_CIERREM  = "flu_003";
+    private static final String FLU_FIN_MED  = "flu_004";
+    private static final String FLU_INI_CR   = "flu_009";
     private static final String FLU_DATOS    = "flu_010";
     private static final String FLU_TIPO_CR  = "flu_011";
+    private static final String FLU_DEC_CR   = "flu_011b";
     private static final String FLU_VIVIEN   = "flu_012";
     private static final String FLU_EMPRESA  = "flu_013";
     private static final String FLU_VEHIC    = "flu_014";
     private static final String FLU_CIERREC  = "flu_015";
+    private static final String FLU_FIN_CR   = "flu_016";
     // Trámites
     private static final String TRA1         = "tra_001";
     private static final String TRA2         = "tra_002";
@@ -100,6 +108,9 @@ public class DataSeeder implements CommandLineRunner {
     @Override
     public void run(String... args) {
         log.info("[DataSeeder] Limpiando colecciones existentes...");
+        bitacoraDocumentoRepositorio.deleteAll();
+        permisoDocumentoRepositorio.deleteAll();
+        documentoRepositorio.deleteAll();
         notificacionRepository.deleteAll();
         bitacoraRepository.deleteAll();
         tramiteRepository.deleteAll();
@@ -215,44 +226,150 @@ public class DataSeeder implements CommandLineRunner {
         politicaRepository.saveAll(List.of(
                 PoliticaNegocio.builder().id(POL_MEDIDOR).nombre("Solicitud de medidor eléctrico")
                         .descripcion("Proceso para instalación de medidor residencial")
-                        .estado("activa").version(1)
-                        .empresaId(EMP1).creadoPorId(USR_JORGE).build(),
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_JORGE).build(),
                 PoliticaNegocio.builder().id(POL_CREDITO).nombre("Solicitud de crédito")
                         .descripcion("Evaluación con flujos condicionales por tipo de crédito")
-                        .estado("activa").version(1)
-                        .empresaId(EMP1).creadoPorId(USR_JORGE).build()
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_JORGE).build(),
+                PoliticaNegocio.builder().id("pol_003").nombre("Conexión de agua potable")
+                        .descripcion("Trámite para nueva conexión de agua domiciliaria")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_JORGE).build(),
+                PoliticaNegocio.builder().id("pol_004").nombre("Regularización de deuda")
+                        .descripcion("Plan de pagos para deudas vencidas con la cooperativa")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_CARLOS).build(),
+                PoliticaNegocio.builder().id("pol_005").nombre("Cambio de titularidad")
+                        .descripcion("Transferencia de contrato a nuevo titular")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_JORGE).build(),
+                PoliticaNegocio.builder().id("pol_006").nombre("Inspección técnica domiciliaria")
+                        .descripcion("Visita técnica para verificación de instalaciones")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_CARLOS).build(),
+                PoliticaNegocio.builder().id("pol_007").nombre("Ampliación de potencia eléctrica")
+                        .descripcion("Aumento de carga contratada para uso industrial")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_JORGE).build(),
+                PoliticaNegocio.builder().id("pol_008").nombre("Baja de servicio")
+                        .descripcion("Cancelación definitiva del servicio eléctrico")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_JORGE).build(),
+                PoliticaNegocio.builder().id("pol_009").nombre("Reposición por corte")
+                        .descripcion("Reconexión del servicio tras corte por morosidad")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_CARLOS).build(),
+                PoliticaNegocio.builder().id("pol_010").nombre("Crédito hipotecario")
+                        .descripcion("Préstamo con garantía inmobiliaria a largo plazo")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_JORGE).build(),
+                PoliticaNegocio.builder().id("pol_011").nombre("Crédito vehicular")
+                        .descripcion("Financiamiento para compra de vehículo nuevo o usado")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_CARLOS).build(),
+                PoliticaNegocio.builder().id("pol_012").nombre("Apertura de cuenta de ahorros")
+                        .descripcion("Alta de nueva cuenta de ahorros persona natural")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_JORGE).build(),
+                PoliticaNegocio.builder().id("pol_013").nombre("Registro de empresa")
+                        .descripcion("Inscripción de nueva empresa en el sistema cooperativo")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_JORGE).build(),
+                PoliticaNegocio.builder().id("pol_014").nombre("Subsidio social energético")
+                        .descripcion("Solicitud de tarifa subsidiada para hogares vulnerables")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_CARLOS).build(),
+                PoliticaNegocio.builder().id("pol_015").nombre("Reclamo por facturación incorrecta")
+                        .descripcion("Revisión y corrección de facturas con montos erróneos")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_JORGE).build(),
+                PoliticaNegocio.builder().id("pol_016").nombre("Certificado de no adeudo")
+                        .descripcion("Emisión de constancia de cuenta al día")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_CARLOS).build(),
+                PoliticaNegocio.builder().id("pol_017").nombre("Instalación de panel solar")
+                        .descripcion("Conexión de generación fotovoltaica a la red")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_JORGE).build(),
+                PoliticaNegocio.builder().id("pol_018").nombre("Traslado de medidor")
+                        .descripcion("Reubicación física del medidor eléctrico")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_CARLOS).build(),
+                PoliticaNegocio.builder().id("pol_019").nombre("Habilitación comercial")
+                        .descripcion("Alta de suministro eléctrico para local comercial")
+                        .estado("activa").version(1).empresaId(EMP1).creadoPorId(USR_JORGE).build(),
+                PoliticaNegocio.builder().id("pol_020").nombre("Préstamo de emergencia")
+                        .descripcion("Crédito rápido para situaciones de emergencia comprobada")
+                        .estado("borrador").version(1).empresaId(EMP1).creadoPorId(USR_CARLOS).build()
         ));
 
-        // ── Flujos — sin campos de relación (los flujos son nodos puros) ────
+        // ── Flujos UML 2.5 — nodos de control + tareas por swimlane (departamento) ──
         flujoRepository.saveAll(List.of(
-                // Medidor — 3 pasos raíz secuenciales
-                flu(FLU_REC,     POL_MEDIDOR, FORM_MEDIDOR, 1, true, DEP_REC),
-                flu(FLU_TEC,     POL_MEDIDOR, FORM_EVAL,    2, true, DEP_TEC),
-                flu(FLU_CIERREM, POL_MEDIDOR, FORM_CIERRE,  3, true, DEP_REC),
-                // Crédito — raíces
-                flu(FLU_DATOS,   POL_CREDITO, FORM_DATOS,   1, true, DEP_REC),
-                flu(FLU_TIPO_CR, POL_CREDITO, FORM_CREDITO, 2, true, DEP_REC),
-                // Hijos condicionales (múltiples padres posibles, múltiples hijos posibles)
-                flu(FLU_VIVIEN,  POL_CREDITO, FORM_EVAL,    3, true, DEP_ADM),
-                flu(FLU_EMPRESA, POL_CREDITO, FORM_EVAL,    3, true, DEP_ADM),
-                flu(FLU_VEHIC,   POL_CREDITO, FORM_EVAL,    3, true, DEP_TEC),
-                flu(FLU_CIERREC, POL_CREDITO, FORM_CIERRE,  4, true, DEP_REC)
+                // Medidor — nodos de control
+                fluControl(FLU_INI_MED, POL_MEDIDOR, "Inicio",  0, "inicio", null),
+                fluControl(FLU_FIN_MED, POL_MEDIDOR, "Fin",     4, "fin",    null),
+                // Medidor — tareas (cada una en la calle de su departamento)
+                flu(FLU_REC,     "Recepción y registro",    POL_MEDIDOR, FORM_MEDIDOR, 1, true, DEP_REC),
+                flu(FLU_TEC,     "Evaluación técnica",      POL_MEDIDOR, FORM_EVAL,    2, true, DEP_TEC),
+                flu(FLU_CIERREM, "Cierre de trámite",       POL_MEDIDOR, FORM_CIERRE,  3, true, DEP_REC),
+                // Crédito — nodos de control
+                fluControl(FLU_INI_CR,  POL_CREDITO, "Inicio",    0, "inicio",   null),
+                fluControl(FLU_DEC_CR,  POL_CREDITO, "¿Tipo?",    3, "decision", null),
+                fluControl(FLU_FIN_CR,  POL_CREDITO, "Fin",       5, "fin",      null),
+                // Crédito — tareas
+                flu(FLU_DATOS,   "Datos del cliente",  POL_CREDITO, FORM_DATOS,   1, true, DEP_REC),
+                flu(FLU_TIPO_CR, "Tipo de crédito",    POL_CREDITO, FORM_CREDITO, 2, true, DEP_REC),
+                flu(FLU_VIVIEN,  "Crédito vivienda",   POL_CREDITO, FORM_EVAL,    4, true, DEP_ADM),
+                flu(FLU_EMPRESA, "Crédito empresa",    POL_CREDITO, FORM_EVAL,    4, true, DEP_ADM),
+                flu(FLU_VEHIC,   "Crédito vehículo",   POL_CREDITO, FORM_EVAL,    4, true, DEP_TEC),
+                flu(FLU_CIERREC, "Cierre de crédito",  POL_CREDITO, FORM_CIERRE,  5, true, DEP_REC)
         ));
-        log.info("[DataSeeder] Flujos creados (9 nodos)");
+        log.info("[DataSeeder] Flujos creados: 2 inicio + 2 fin + 1 decision + 9 tareas");
 
-        // ── Relaciones de flujo — muchos-a-muchos via FlujoRelacion ────────
+        // ── Flujos para políticas adicionales (3 etapas cada una) ──
+        String[] polsExtra = {"pol_003","pol_004","pol_005","pol_006","pol_007","pol_008",
+                              "pol_009","pol_010","pol_011","pol_012","pol_013","pol_014",
+                              "pol_015","pol_016","pol_017","pol_018","pol_019","pol_020"};
+        String[][] etapas = {
+            {"Solicitud inicial","Inspección de campo","Aprobación y alta"},
+            {"Revisión de deuda","Plan de pago","Confirmación acuerdo"},
+            {"Recepción documentos","Verificación legal","Emisión contrato"},
+            {"Agendamiento visita","Inspección técnica","Informe de resultados"},
+            {"Solicitud de ampliación","Estudio técnico","Instalación y cierre"},
+            {"Solicitud de baja","Corte de suministro","Cierre de cuenta"},
+            {"Solicitud de reposición","Verificación pago","Reconexión"},
+            {"Solicitud hipotecaria","Tasación inmueble","Aprobación crédito"},
+            {"Solicitud vehicular","Evaluación crediticia","Desembolso"},
+            {"Apertura solicitud","Validación identidad","Alta de cuenta"},
+            {"Registro empresa","Verificación fiscal","Activación cuenta"},
+            {"Solicitud subsidio","Estudio socioeconómico","Aprobación tarifa"},
+            {"Ingreso reclamo","Revisión técnica","Corrección y notificación"},
+            {"Solicitud certificado","Verificación saldo","Emisión constancia"},
+            {"Solicitud solar","Evaluación técnica","Conexión a red"},
+            {"Solicitud traslado","Inspección sitio","Reubicación medidor"},
+            {"Solicitud comercial","Estudio carga","Alta suministro"},
+            {"Solicitud emergencia","Evaluación situación","Desembolso urgente"},
+        };
+        String[] deps = {DEP_REC, DEP_TEC, DEP_ADM};
+        String[] forms = {FORM_DATOS, FORM_EVAL, FORM_CIERRE};
+        List<Flujo> flujoExtra = new ArrayList<>();
+        for (int p = 0; p < polsExtra.length; p++) {
+            String polId = polsExtra[p];
+            flujoExtra.add(fluControl("flu_ini_" + polId, polId, "Inicio", 0, "inicio", null));
+            for (int e = 0; e < 3; e++) {
+                flujoExtra.add(flu("flu_" + polId + "_" + e, etapas[p][e], polId,
+                    forms[e], e + 1, true, deps[e]));
+            }
+            flujoExtra.add(fluControl("flu_fin_" + polId, polId, "Fin", 4, "fin", null));
+        }
+        flujoRepository.saveAll(flujoExtra);
+        log.info("[DataSeeder] {} flujos adicionales creados", flujoExtra.size());
+
+        // ── Relaciones de flujo ─────────────────────────────────────────────
         flujoRelacionRepository.saveAll(List.of(
-                // Crédito: FLU_TIPO_CR → hijos condicionales (1 padre con 3 hijos)
-                rel("rel_001", POL_CREDITO, FLU_TIPO_CR, FLU_VIVIEN,  "Tipo de crédito", "vivienda", "condicional"),
-                rel("rel_002", POL_CREDITO, FLU_TIPO_CR, FLU_EMPRESA, "Tipo de crédito", "empresa",  "condicional"),
-                rel("rel_003", POL_CREDITO, FLU_TIPO_CR, FLU_VEHIC,   "Tipo de crédito", "vehiculo", "condicional"),
-                // Crédito: hijos convergen en FLU_CIERREC via relación "siguiente"
-                // (3 padres distintos apuntan al mismo hijo — muchos padres, 1 hijo)
-                rel("rel_004", POL_CREDITO, FLU_VIVIEN,  FLU_CIERREC, null, null, "siguiente"),
-                rel("rel_005", POL_CREDITO, FLU_EMPRESA, FLU_CIERREC, null, null, "siguiente"),
-                rel("rel_006", POL_CREDITO, FLU_VEHIC,   FLU_CIERREC, null, null, "siguiente")
+                // Medidor — secuencial lineal
+                rel("rel_m01", POL_MEDIDOR, FLU_INI_MED, FLU_REC,     null, null, "secuencial"),
+                rel("rel_m02", POL_MEDIDOR, FLU_REC,     FLU_TEC,     null, null, "secuencial"),
+                rel("rel_m03", POL_MEDIDOR, FLU_TEC,     FLU_CIERREM, null, null, "secuencial"),
+                rel("rel_m04", POL_MEDIDOR, FLU_CIERREM, FLU_FIN_MED, null, null, "secuencial"),
+                // Crédito — flujo principal
+                rel("rel_c01", POL_CREDITO, FLU_INI_CR,  FLU_DATOS,   null, null, "secuencial"),
+                rel("rel_c02", POL_CREDITO, FLU_DATOS,   FLU_TIPO_CR, null, null, "secuencial"),
+                rel("rel_c03", POL_CREDITO, FLU_TIPO_CR, FLU_DEC_CR,  null, null, "secuencial"),
+                // Crédito — ramas desde nodo DECISION según campo del formulario
+                rel("rel_c04", POL_CREDITO, FLU_DEC_CR,  FLU_VIVIEN,  "Tipo de crédito", "vivienda", "condicional"),
+                rel("rel_c05", POL_CREDITO, FLU_DEC_CR,  FLU_EMPRESA, "Tipo de crédito", "empresa",  "condicional"),
+                rel("rel_c06", POL_CREDITO, FLU_DEC_CR,  FLU_VEHIC,   "Tipo de crédito", "vehiculo", "condicional"),
+                // Crédito — convergencia de ramas hacia cierre
+                rel("rel_c07", POL_CREDITO, FLU_VIVIEN,  FLU_CIERREC, null, null, "secuencial"),
+                rel("rel_c08", POL_CREDITO, FLU_EMPRESA, FLU_CIERREC, null, null, "secuencial"),
+                rel("rel_c09", POL_CREDITO, FLU_VEHIC,   FLU_CIERREC, null, null, "secuencial"),
+                rel("rel_c10", POL_CREDITO, FLU_CIERREC, FLU_FIN_CR,  null, null, "secuencial")
         ));
-        log.info("[DataSeeder] Relaciones creadas: 3 condicionales + 3 convergencias");
+        log.info("[DataSeeder] Relaciones creadas: 4 secuenciales medidor + 10 crédito");
 
         // ── Trámites ──────────────────────────────────────────
         tramiteRepository.saveAll(List.of(
@@ -356,6 +473,212 @@ public class DataSeeder implements CommandLineRunner {
         ));
         log.info("[DataSeeder] Trámites creados: {}, {}, {}, {}, {}", TRA1, TRA2, TRA3, TRA4, TRA5);
 
+        // ── Trámites históricos para entrenamiento ML (50 registros) ──
+        List<Tramite> historicos = new ArrayList<>();
+        String[] clientes   = {USR_ROBERTO, USR_LUISA, USR_ANA, USR_SOFIA, USR_ELENA};
+        String[] receps     = {USR_MARIA, USR_ANA, USR_SOFIA, USR_ELENA, USR_ROSA};
+        String[] politicas  = {POL_MEDIDOR, POL_CREDITO};
+        String[] estadosML  = {"completado","completado","completado","completado","cancelado"};
+        String[] prioridML  = {"normal","normal","normal","urgente","normal"};
+        String[] semafoML   = {"verde","verde","amarillo","amarillo","rojo"};
+
+        for (int i = 0; i < 50; i++) {
+            int idx   = i % 5;
+            String est = estadosML[idx];
+            String pri = prioridML[idx];
+            String sem = semafoML[idx];
+            LocalDateTime base = ahora.minusDays(5 + (i * 2));
+            LocalDateTime fin  = base.plusDays(1 + (i % 4));
+
+            int nAct = 2 + (i % 4);
+            List<Actividad> acts = new ArrayList<>();
+            for (int j = 0; j < nAct; j++) {
+                String actEst = (j < nAct - 1) ? "completado"
+                              : ("cancelado".equals(est) && j == nAct - 1) ? "rechazado" : "completado";
+                acts.add(act(
+                    "act_h" + i + "_" + j,
+                    FLU_REC, receps[i % 5], DEP_REC,
+                    "Paso " + (j + 1), actEst,
+                    base.plusHours(j * 8), base.plusHours(j * 8 + 6 + (i % 3)),
+                    actEst.equals("rechazado") ? "Documentación incompleta" : "Completado",
+                    datosForm(FORM_MEDIDOR, actEst.equals("rechazado") ? "observado" : "completado",
+                        base.plusHours(j * 8 + 6), List.of(
+                            dato(CMP_MEDIDOR, "Número de medidor", "MED-H" + (1000 + i)),
+                            dato(CMP_UBIC, "Ubicación", "Barrio " + (i % 6) + ", Calle " + i)
+                        ), List.of())
+                ));
+            }
+
+            historicos.add(Tramite.builder()
+                .id("tra_h" + String.format("%03d", i))
+                .politicaId(politicas[i % 2])
+                .clienteId(clientes[i % 5])
+                .recepcionistaId(receps[i % 5])
+                .empresaId(EMP1)
+                .estado(est).prioridad(pri)
+                .fecha(base).fechaFin(fin)
+                .actividades(acts)
+                .build());
+        }
+        tramiteRepository.saveAll(historicos);
+        log.info("[DataSeeder] {} tramites historicos para ML insertados", historicos.size());
+
+        // ── 200 trámites distribuidos (activos + históricos) ──────────────────
+        String[] todasPols = {POL_MEDIDOR, POL_CREDITO,
+            "pol_003","pol_004","pol_005","pol_006","pol_007","pol_008","pol_009","pol_010",
+            "pol_011","pol_012","pol_013","pol_014","pol_015","pol_016","pol_017","pol_018","pol_019","pol_020"};
+        String[] todosClientes = {USR_ROBERTO, USR_LUISA, USR_ANA, USR_SOFIA, USR_ELENA};
+        String[] todosReceps   = {USR_MARIA, USR_ANA, USR_SOFIA, USR_ELENA, USR_ROSA};
+
+        // Patrones: {estado, prioridad, semaforo}
+        String[][] patrones = {
+            {"completado","normal","verde"},   {"completado","normal","verde"},
+            {"completado","normal","verde"},   {"completado","normal","amarillo"},
+            {"completado","urgente","amarillo"},{"cancelado","normal","rojo"},
+            {"proceso","normal","verde"},      {"proceso","normal","verde"},
+            {"proceso","normal","amarillo"},   {"urgente","urgente","rojo"},
+        };
+
+        List<Tramite> masivos = new ArrayList<>();
+        for (int i = 0; i < 200; i++) {
+            String[] pat     = patrones[i % patrones.length];
+            String est2      = pat[0];
+            String pri2      = pat[1];
+            String sem2      = pat[2];
+            String polId2    = todasPols[i % todasPols.length];
+            String fluBase   = (polId2.equals(POL_MEDIDOR) || polId2.equals(POL_CREDITO))
+                               ? (polId2.equals(POL_MEDIDOR) ? FLU_REC : FLU_DATOS)
+                               : "flu_" + polId2 + "_0";
+            LocalDateTime base2 = ahora.minusDays(1 + (i % 180));
+            int nAct2 = 2 + (i % 3);
+            boolean esHist   = est2.equals("completado") || est2.equals("cancelado");
+            LocalDateTime fin2 = esHist ? base2.plusDays(1 + (i % 5)) : null;
+
+            List<Actividad> actsM = new ArrayList<>();
+            for (int j = 0; j < nAct2; j++) {
+                boolean esUltimaM = (j == nAct2 - 1);
+                String actEstM;
+                if (esHist) {
+                    actEstM = (est2.equals("cancelado") && esUltimaM) ? "rechazado" : "completado";
+                } else {
+                    actEstM = esUltimaM ? "activo" : "completado";
+                }
+                LocalDateTime iniM = base2.plusHours(j * 8L);
+                LocalDateTime finM = actEstM.equals("activo") ? null : iniM.plusHours(7);
+                actsM.add(act(
+                    "act_m" + i + "_" + j,
+                    fluBase, todosReceps[i % 5], deps[j % 3],
+                    "Etapa " + (j + 1), actEstM,
+                    iniM, finM,
+                    actEstM.equals("rechazado") ? "Documentación incompleta" : (actEstM.equals("activo") ? null : "OK"),
+                    datosForm(forms[j % 3],
+                        actEstM.equals("activo") ? "en_proceso" : "completado",
+                        iniM.plusHours(6),
+                        actEstM.equals("activo") ? List.of() : List.of(
+                            dato(CMP_NOMBRE, "Nombre", "Cliente " + i),
+                            dato(CMP_CI, "CI", String.valueOf(3000000 + i))
+                        ), List.of())
+                ));
+            }
+
+            masivos.add(Tramite.builder()
+                .id("tra_m" + String.format("%03d", i + 1))
+                .politicaId(polId2)
+                .clienteId(todosClientes[i % 5])
+                .recepcionistaId(todosReceps[i % 5])
+                .empresaId(EMP1)
+                .estado(est2).prioridad(pri2)
+                .fecha(base2).fechaFin(fin2)
+                .actividades(actsM)
+                .build());
+        }
+        tramiteRepository.saveAll(masivos);
+        log.info("[DataSeeder] {} tramites masivos insertados", masivos.size());
+
+        // ── Trámites activos adicionales para el dashboard (20 registros) ──
+        List<Tramite> activos = new ArrayList<>();
+
+        // Configuraciones: {estado, prioridad, semaforo, nActividades, tieneRechazo}
+        Object[][] cfgs = {
+            {"proceso",  "normal",  "verde",    2, false},
+            {"proceso",  "normal",  "verde",    3, false},
+            {"proceso",  "normal",  "amarillo", 3, false},
+            {"proceso",  "urgente", "amarillo", 4, true },
+            {"urgente",  "urgente", "rojo",     4, true },
+            {"proceso",  "normal",  "verde",    2, false},
+            {"proceso",  "normal",  "amarillo", 3, true },
+            {"urgente",  "urgente", "rojo",     5, true },
+            {"proceso",  "normal",  "verde",    2, false},
+            {"proceso",  "normal",  "verde",    3, false},
+            {"proceso",  "urgente", "amarillo", 4, true },
+            {"urgente",  "urgente", "rojo",     3, true },
+            {"proceso",  "normal",  "verde",    2, false},
+            {"proceso",  "normal",  "amarillo", 4, false},
+            {"proceso",  "normal",  "verde",    2, false},
+            {"urgente",  "urgente", "rojo",     5, true },
+            {"proceso",  "normal",  "amarillo", 3, true },
+            {"proceso",  "normal",  "verde",    2, false},
+            {"proceso",  "urgente", "amarillo", 3, true },
+            {"urgente",  "urgente", "rojo",     4, true },
+        };
+
+        String[] nombresClientes = {"Carlos", "Ana", "Pedro", "Laura", "Miguel",
+                                    "Diana",  "Luis", "Sofia", "Marco", "Elena",
+                                    "Rosa",   "Juan", "Carla", "Mario", "Paula",
+                                    "Tomas",  "Nina", "Felix", "Dora",  "Hugo"};
+        String[] apellidos       = {"Roca","Vega","Cruz","Lima","Soto",
+                                    "Ríos","Alba","Mora","Páez","Cano",
+                                    "Lara","Ruiz","Díaz","Mena","Pino",
+                                    "Leiva","Fuen","Nava","Ossa","Bravo"};
+
+        for (int i = 0; i < 20; i++) {
+            Object[] c      = cfgs[i];
+            String est      = (String) c[0];
+            String pri      = (String) c[1];
+            String sem      = (String) c[2];
+            int nAct        = (int)    c[3];
+            boolean rechazo = (boolean)c[4];
+            LocalDateTime base = ahora.minusHours(6 + i * 3L);
+
+            List<Actividad> acts = new ArrayList<>();
+            for (int j = 0; j < nAct; j++) {
+                boolean esUltima  = (j == nAct - 1);
+                String actEst     = esUltima ? "activo"
+                                  : (rechazo && j == nAct - 2) ? "rechazado" : "completado";
+                LocalDateTime ini = base.plusHours(j * 6L);
+                LocalDateTime fin2 = actEst.equals("activo") ? null : ini.plusHours(5);
+                acts.add(act(
+                    "act_a" + i + "_" + j,
+                    j % 2 == 0 ? FLU_REC : FLU_TEC,
+                    receps[i % 5],
+                    j % 2 == 0 ? DEP_REC : DEP_TEC,
+                    "Etapa " + (j + 1), actEst,
+                    ini, fin2,
+                    actEst.equals("rechazado") ? "Documentos faltantes" : (actEst.equals("activo") ? null : "OK"),
+                    datosForm(j % 2 == 0 ? FORM_MEDIDOR : FORM_EVAL,
+                        actEst.equals("activo") ? "en_proceso" : "completado",
+                        ini.plusHours(4),
+                        actEst.equals("activo") ? List.of() : List.of(
+                            dato(CMP_MEDIDOR, "Número de medidor", "MED-A" + (2000 + i * 10 + j)),
+                            dato(CMP_UBIC, "Ubicación", nombresClientes[i] + " " + apellidos[i] + ", zona " + (i % 5))
+                        ), List.of())
+                ));
+            }
+
+            activos.add(Tramite.builder()
+                .id("tra_a" + String.format("%02d", i + 1))
+                .politicaId(i % 3 == 0 ? POL_CREDITO : POL_MEDIDOR)
+                .clienteId(clientes[i % 5])
+                .recepcionistaId(receps[i % 5])
+                .empresaId(EMP1)
+                .estado(est).prioridad(pri)
+                .fecha(base)
+                .actividades(acts)
+                .build());
+        }
+        tramiteRepository.saveAll(activos);
+        log.info("[DataSeeder] {} tramites activos para dashboard insertados", activos.size());
+
         // ── Bitácora ──────────────────────────────────────────
         bitacoraRepository.saveAll(List.of(
                 bitacora(TRA1, USR_MARIA,  "INICIAR",   "Trámite de medidor iniciado",      null,      "proceso",    h24),
@@ -381,6 +704,37 @@ public class DataSeeder implements CommandLineRunner {
                 notif(USR_JORGE,   TRA5, "NUEVA_ACTIVIDAD", "Se te asignó evaluación de crédito vivienda",            false, h1),
                 notif(USR_LUISA,   TRA5, "AVANCE",          "Tu solicitud de crédito avanzó a revisión",              false, h1)
         ));
+
+        // ── Documentos (Feature 3) ────────────────────────────
+        documentoRepositorio.saveAll(List.of(
+            Documento.builder()
+                .id("doc_001").nombre("Acta de inspección TRA-001.pdf").tipo("pdf")
+                .tamanio(204800L).empresaId(EMP1).tramiteId(TRA1).actividadId("act_002")
+                .claveAlmacenamiento("uploads/emp_001/tra_001/acta_inspeccion.pdf")
+                .version("1.0").creadoPor(USR_CARLOS).fechaCreacion(h6).activo(true)
+                .descripcion("Acta de la inspección técnica preliminar").build(),
+            Documento.builder()
+                .id("doc_002").nombre("Acta de cierre TRA-002.pdf").tipo("pdf")
+                .tamanio(153600L).empresaId(EMP1).tramiteId(TRA2).actividadId("act_005")
+                .claveAlmacenamiento("uploads/emp_001/tra_002/acta_cierre.pdf")
+                .version("1.0").creadoPor(USR_MARIA).fechaCreacion(h12).activo(true)
+                .descripcion("Documento de cierre del trámite completado").build()
+        ));
+
+        permisoDocumentoRepositorio.saveAll(List.of(
+            PermisoDocumento.builder().documentoId("doc_001").usuarioId(USR_MARIA).nivel("editor").otorgadoPor(USR_CARLOS).build(),
+            PermisoDocumento.builder().documentoId("doc_001").usuarioId(USR_JORGE).nivel("visualizador").otorgadoPor(USR_CARLOS).build(),
+            PermisoDocumento.builder().documentoId("doc_002").usuarioId(USR_MARIA).nivel("editor").otorgadoPor(USR_MARIA).build(),
+            PermisoDocumento.builder().documentoId("doc_002").usuarioId(USR_CARLOS).nivel("visualizador").otorgadoPor(USR_MARIA).build()
+        ));
+
+        bitacoraDocumentoRepositorio.saveAll(List.of(
+            BitacoraDocumento.builder().documentoId("doc_001").usuarioId(USR_CARLOS).accion("subio").detalle("Subió versión 1.0").fecha(h6).build(),
+            BitacoraDocumento.builder().documentoId("doc_001").usuarioId(USR_MARIA).accion("visualizo").detalle("Visualizó el documento").fecha(h2).build(),
+            BitacoraDocumento.builder().documentoId("doc_002").usuarioId(USR_MARIA).accion("subio").detalle("Subió versión 1.0").fecha(h12).build(),
+            BitacoraDocumento.builder().documentoId("doc_002").usuarioId(USR_JORGE).accion("descargo").detalle("Descargó el documento").fecha(h6).build()
+        ));
+        log.info("[DataSeeder] Documentos, permisos y bitácora documental creados");
 
         log.info("[DataSeeder] ══════════════════════════════════════════════════");
         log.info("[DataSeeder]  Seeding completado — workflow_dev");
@@ -419,12 +773,18 @@ public class DataSeeder implements CommandLineRunner {
                 .requerido(requerido).opciones(opciones).build();
     }
 
-    /** Crea un flujo puro sin campos de relación — las relaciones se crean por separado */
-    private Flujo flu(String id, String politicaId, String formularioId,
+    /** Crea un nodo de tarea (swimlane = departamento, tipo = "tarea") */
+    private Flujo flu(String id, String nombre, String politicaId, String formularioId,
                       int orden, boolean obligatorio, String depId) {
-        return Flujo.builder().id(id).politicaId(politicaId)
+        return Flujo.builder().id(id).nombre(nombre).politicaId(politicaId)
                 .formularioId(formularioId).orden(orden).esObligatorio(obligatorio)
-                .departamentoId(depId).build();
+                .departamentoId(depId).tipoNodo("tarea").build();
+    }
+
+    /** Crea un nodo de control UML (inicio, fin, decision, fork, join) — sin formulario ni departamento obligatorio */
+    private Flujo fluControl(String id, String politicaId, String nombre, int orden, String tipoNodo, String depId) {
+        return Flujo.builder().id(id).nombre(nombre).politicaId(politicaId)
+                .orden(orden).esObligatorio(false).departamentoId(depId).tipoNodo(tipoNodo).build();
     }
 
     /** Crea una relación entre dos flujos */

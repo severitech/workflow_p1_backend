@@ -24,14 +24,11 @@ public class Flujo {
     private String formularioId;
     private int orden;
     private boolean esObligatorio;
-    /** Departamento responsable de esta actividad */
+    /** Departamento responsable — define la calle (swimlane) en el diagrama UML */
     private String departamentoId;
 
-    /** Posición X del nodo en el canvas del editor */
-    private Double posicionX;
-
-    /** Posición Y del nodo en el canvas del editor */
-    private Double posicionY;
+    /** Tipo de nodo UML 2.5: inicio | fin | tarea | decision | fork | join */
+    private String tipoNodo;
 
     @CreatedDate
     private LocalDateTime fechaCreacion;

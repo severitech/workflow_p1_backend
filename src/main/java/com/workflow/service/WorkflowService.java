@@ -35,23 +35,31 @@ public class WorkflowService {
             throw new WorkflowException("La política no está activa");
         }
 
-        // Flujos raíz = flujos sin relaciones que los apunten como hijos
-        Set<String> tienenRelacionEntrante = obtenerFlujosConRelacionEntrante(politicaId);
-        List<Flujo> primerosFlujosOrdenados = flujoRepository.findByPoliticaIdOrderByOrden(politicaId).stream()
-                .filter(f -> !tienenRelacionEntrante.contains(f.getId()))
-                .toList();
-
-        if (primerosFlujosOrdenados.isEmpty()) {
-            throw new WorkflowException("La política no tiene flujos configurados");
-        }
-
-        // El primer orden puede ser paralelo si hay varios flujos con el mismo orden mínimo
-        int primerOrden = primerosFlujosOrdenados.get(0).getOrden();
-        List<Flujo> primerosParalelos = primerosFlujosOrdenados.stream()
-                .filter(f -> f.getOrden() == primerOrden).toList();
+        // Nodo de inicio = flujo con tipoNodo="inicio" o, si no existe, flujos sin relaciones entrantes
+        List<Flujo> todosLosFlujos = flujoRepository.findByPoliticaIdOrderByOrden(politicaId);
+        List<Flujo> nodosInicio = todosLosFlujos.stream()
+                .filter(f -> "inicio".equals(f.getTipoNodo())).toList();
 
         List<Actividad> actividades = new ArrayList<>();
-        for (Flujo f : primerosParalelos) actividades.add(crearActividad(f, "activo"));
+        if (!nodosInicio.isEmpty()) {
+            // UML 2.5: traversar desde el nodo INICIO saltando nodos de control
+            for (Flujo inicio : nodosInicio) {
+                resolverActivables(inicio, List.of()).forEach(f -> actividades.add(crearActividad(f, "activo")));
+            }
+        } else {
+            // Compatibilidad: flujos sin relaciones entrantes (modo anterior)
+            Set<String> tienenRelacionEntrante = obtenerFlujosConRelacionEntrante(politicaId);
+            List<Flujo> raices = todosLosFlujos.stream()
+                    .filter(f -> !tienenRelacionEntrante.contains(f.getId())).toList();
+            if (raices.isEmpty()) throw new WorkflowException("La política no tiene flujos configurados");
+            int primerOrden = raices.get(0).getOrden();
+            raices.stream().filter(f -> f.getOrden() == primerOrden)
+                    .forEach(f -> actividades.add(crearActividad(f, "activo")));
+        }
+
+        if (actividades.isEmpty()) {
+            throw new WorkflowException("La política no tiene actividades de tarea configuradas");
+        }
 
         Tramite tramite = Tramite.builder()
                 .politicaId(politicaId).clienteId(clienteId).recepcionistaId(recepcionistaId)
@@ -174,12 +182,59 @@ public class WorkflowService {
     }
 
     /**
-     * Determina los siguientes flujos a activar soportando:
-     * 1. iterativo — bucle condicional (condición met → loop, no met → continuar)
-     * 2. paralelo — fork simultáneo (todos los flujos paralelos se activan a la vez)
-     * 3. condicional — rama única según datos del formulario
-     * 4. siguiente — convergencia explícita
-     * 5. fallback — siguiente flujo raíz por orden
+     * Traversa un nodo UML 2.5 y devuelve las actividades (tareas) activables.
+     * Los nodos de control (inicio, fin, decision, fork, join) se recorren automáticamente.
+     */
+    private List<Flujo> resolverActivables(Flujo flujo, List<DatoForm> datos) {
+        String tipo = flujo.getTipoNodo() != null ? flujo.getTipoNodo() : "tarea";
+        return switch (tipo) {
+            case "tarea" -> List.of(flujo);
+            case "fin" -> List.of(); // fin del proceso — sin más actividades
+            case "inicio", "fork", "join" -> {
+                // Traversar hacia los hijos
+                yield relacionRepository.findByPadreId(flujo.getId()).stream()
+                        .map(r -> flujoRepository.findById(r.getHijoId()).orElse(null))
+                        .filter(Objects::nonNull)
+                        .flatMap(f -> resolverActivables(f, datos).stream())
+                        .toList();
+            }
+            case "decision" -> {
+                // Evaluar condiciones y traversar solo la rama que coincida
+                List<FlujoRelacion> salientes = relacionRepository.findByPadreId(flujo.getId());
+                FlujoRelacion porDefecto = null;
+                for (FlujoRelacion rel : salientes) {
+                    if (rel.getCondicionCampo() != null && rel.getCondicionValor() != null) {
+                        boolean coincide = datos.stream().anyMatch(d ->
+                                rel.getCondicionCampo().equalsIgnoreCase(d.getEtiqueta()) &&
+                                rel.getCondicionValor().equalsIgnoreCase(d.getValor()));
+                        if (coincide) {
+                            yield flujoRepository.findById(rel.getHijoId())
+                                    .map(f -> resolverActivables(f, datos))
+                                    .orElse(List.of());
+                        }
+                    } else if (porDefecto == null) {
+                        porDefecto = rel;
+                    }
+                }
+                if (porDefecto != null) {
+                    yield flujoRepository.findById(porDefecto.getHijoId())
+                            .map(f -> resolverActivables(f, datos))
+                            .orElse(List.of());
+                }
+                yield List.of();
+            }
+            default -> List.of(flujo);
+        };
+    }
+
+    /**
+     * Determina los siguientes flujos (tareas) a activar soportando:
+     * 1. iterativo — bucle condicional
+     * 2. paralelo — fork simultáneo
+     * 3. condicional — rama según datos del formulario
+     * 4. secuencial — flujo directo (reemplaza a "siguiente")
+     * 5. fallback — siguiente nodo raíz por orden
+     * Nodos de control UML (decision, fork, join, fin) se traversan automáticamente.
      */
     public List<Flujo> determinarSiguientesFlujoss(String politicaId, String flujoActualId, List<DatoForm> datosForm) {
         List<FlujoRelacion> salientes = relacionRepository.findByPadreId(flujoActualId);
@@ -193,19 +248,19 @@ public class WorkflowService {
                                 rel.getCondicionValor() != null &&
                                 rel.getCondicionValor().equalsIgnoreCase(d.getValor()));
                 if (condicionMet) {
-                    // Condición cumplida → repetir (loop back al flujo destino)
                     return flujoRepository.findById(rel.getHijoId())
-                            .map(List::of).orElse(List.of());
+                            .map(f -> resolverActivables(f, datosForm))
+                            .orElse(List.of());
                 }
-                // Condición no cumplida → salir del bucle, continuar con flujo normal
             }
         }
 
-        // 2. Paralelo — fork: devolver TODOS los flujos hijos paralelos simultáneamente
+        // 2. Paralelo — fork: activar todos los hijos paralelos a la vez
         List<Flujo> paralelos = salientes.stream()
                 .filter(r -> "paralelo".equals(r.getTipo()))
                 .map(r -> flujoRepository.findById(r.getHijoId()).orElse(null))
                 .filter(Objects::nonNull)
+                .flatMap(f -> resolverActivables(f, datosForm).stream())
                 .toList();
         if (!paralelos.isEmpty()) return paralelos;
 
@@ -217,8 +272,11 @@ public class WorkflowService {
                     boolean coincide = datosForm.stream().anyMatch(d ->
                             rel.getCondicionCampo().equalsIgnoreCase(d.getEtiqueta()) &&
                             rel.getCondicionValor().equalsIgnoreCase(d.getValor()));
-                    if (coincide) return flujoRepository.findById(rel.getHijoId())
-                            .map(List::of).orElse(List.of());
+                    if (coincide) {
+                        return flujoRepository.findById(rel.getHijoId())
+                                .map(f -> resolverActivables(f, datosForm))
+                                .orElse(List.of());
+                    }
                 } else if (sinCondicion == null) {
                     sinCondicion = rel;
                 }
@@ -226,18 +284,20 @@ public class WorkflowService {
         }
         if (sinCondicion != null) {
             return flujoRepository.findById(sinCondicion.getHijoId())
-                    .map(List::of).orElse(List.of());
+                    .map(f -> resolverActivables(f, datosForm))
+                    .orElse(List.of());
         }
 
-        // 4. Siguiente — si hay varios del mismo padre se tratan como fork paralelo
-        List<Flujo> siguientes = salientes.stream()
-                .filter(r -> "siguiente".equals(r.getTipo()))
+        // 4. Secuencial (incluye "siguiente" por compatibilidad)
+        List<Flujo> secuenciales = salientes.stream()
+                .filter(r -> "secuencial".equals(r.getTipo()) || "siguiente".equals(r.getTipo()))
                 .map(r -> flujoRepository.findById(r.getHijoId()).orElse(null))
                 .filter(Objects::nonNull)
+                .flatMap(f -> resolverActivables(f, datosForm).stream())
                 .toList();
-        if (!siguientes.isEmpty()) return siguientes;
+        if (!secuenciales.isEmpty()) return secuenciales;
 
-        // 5. Fallback: siguiente flujo raíz por orden
+        // 5. Fallback: siguiente nodo raíz por orden
         Flujo flujoActual = flujoRepository.findById(flujoActualId).orElse(null);
         if (flujoActual == null) return List.of();
 
@@ -246,13 +306,8 @@ public class WorkflowService {
                 .filter(f -> !conRelacionEntrante.contains(f.getId()))
                 .filter(f -> f.getOrden() > flujoActual.getOrden())
                 .findFirst()
-                .map(List::of).orElse(List.of());
-    }
-
-    /** @deprecated Usar determinarSiguientesFlujoss */
-    public Flujo determinarSiguienteFlujo(String politicaId, String flujoActualId, List<DatoForm> datosForm) {
-        List<Flujo> lista = determinarSiguientesFlujoss(politicaId, flujoActualId, datosForm);
-        return lista.isEmpty() ? null : lista.get(0);
+                .map(f -> resolverActivables(f, datosForm))
+                .orElse(List.of());
     }
 
     /** Guarda o actualiza un campo del formulario en la actividad (upsert por componenteId) */

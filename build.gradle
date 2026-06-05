@@ -40,8 +40,19 @@ dependencies {
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 
-    // MongoDB embebido — reemplaza a Docker/MongoDB local para dev
+    // MongoDB embebido — sin servicio externo (tipo SQLite)
     implementation 'de.flapdoodle.embed:de.flapdoodle.embed.mongo.spring3x:4.12.2'
+
+    // AWS S3 — almacenamiento de documentos (se activa con storage.tipo=s3)
+    implementation 'software.amazon.awssdk:s3:2.25.0'
+    implementation 'software.amazon.awssdk:url-connection-client:2.25.0'
+
+    // Exportación PDF — reportes dinámicos (Feature 2)
+    implementation 'com.itextpdf:kernel:7.2.5'
+    implementation 'com.itextpdf:layout:7.2.5'
+
+    // Exportación Excel — reportes dinámicos (Feature 2)
+    implementation 'org.apache.poi:poi-ooxml:5.2.3'
 }
 
 tasks.named('test') {

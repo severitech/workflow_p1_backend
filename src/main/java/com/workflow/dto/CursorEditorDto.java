@@ -14,15 +14,13 @@ public class CursorEditorDto {
     private String usuarioId;
     private String nombre;
     private String color;
-    private double x;
-    private double y;
-    /** moviendo | arrastrando-nodo | editando-campo | saliendo */
+    /** moviendo | editando-campo | saliendo */
     private String accion;
-    /** ID del flujo que está siendo arrastrado */
+    /** ID del flujo sobre el que está el cursor */
     private String nodoId;
     /** ID del componente que está siendo editado en el formulario */
     private String campoId;
-    /** canvas | formulario */
+    /** diagrama | formulario */
     private String contexto;
     private String politicaId;
     private String formularioId;

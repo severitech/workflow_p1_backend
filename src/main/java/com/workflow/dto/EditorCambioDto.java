@@ -9,12 +9,10 @@ import lombok.*;
 @AllArgsConstructor
 public class EditorCambioDto {
 
-    /** mover-nodo | conectar | desconectar | eliminar-flujo | actualizar */
+    /** conectar | desconectar | eliminar-flujo | actualizar */
     private String tipo;
 
     private String flujoId;
-    private Double posicionX;
-    private Double posicionY;
 
     /** Nuevo padre al conectar, null al desconectar */
     private String flujoPadreId;

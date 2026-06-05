@@ -181,8 +181,10 @@ public class CrudServices {
         for (Flujo flujo : flujos) {
             Flujo clonado = flujoRepository.save(Flujo.builder()
                     .politicaId(nuevaPoliticaId)
+                    .nombre(flujo.getNombre())
                     .formularioId(flujo.getFormularioId()).orden(flujo.getOrden())
                     .esObligatorio(flujo.isEsObligatorio()).departamentoId(flujo.getDepartamentoId())
+                    .tipoNodo(flujo.getTipoNodo() != null ? flujo.getTipoNodo() : "tarea")
                     .build());
             mapaIds.put(flujo.getId(), clonado.getId());
         }
@@ -208,8 +210,10 @@ public class CrudServices {
     public Flujo crearFlujo(FlujoRequest req) {
         Flujo flujo = Flujo.builder()
                 .politicaId(req.getPoliticaId())
+                .nombre(req.getNombre())
                 .formularioId(req.getFormularioId()).orden(req.getOrden())
                 .esObligatorio(req.isEsObligatorio()).departamentoId(req.getDepartamentoId())
+                .tipoNodo(req.getTipoNodo() != null ? req.getTipoNodo() : "tarea")
                 .build();
         return flujoRepository.save(flujo);
     }
@@ -236,11 +240,11 @@ public class CrudServices {
     public Flujo actualizarFlujo(String id, FlujoRequest req) {
         Flujo flujo = flujoRepository.findById(id)
                 .orElseThrow(() -> new WorkflowException("Flujo no encontrado: " + id));
+        if (req.getNombre() != null) flujo.setNombre(req.getNombre());
         flujo.setFormularioId(req.getFormularioId());
         flujo.setOrden(req.getOrden()); flujo.setEsObligatorio(req.isEsObligatorio());
         flujo.setDepartamentoId(req.getDepartamentoId());
-        if (req.getPosicionX() != null) flujo.setPosicionX(req.getPosicionX());
-        if (req.getPosicionY() != null) flujo.setPosicionY(req.getPosicionY());
+        if (req.getTipoNodo() != null) flujo.setTipoNodo(req.getTipoNodo());
         return flujoRepository.save(flujo);
     }
 
@@ -259,7 +263,7 @@ public class CrudServices {
                 .politicaId(req.getPoliticaId())
                 .padreId(req.getPadreId()).hijoId(req.getHijoId())
                 .condicionCampo(req.getCondicionCampo()).condicionValor(req.getCondicionValor())
-                .tipo(req.getTipo() != null ? req.getTipo() : "condicional")
+                .tipo(req.getTipo() != null ? req.getTipo() : "secuencial")
                 .build();
         return relacionRepository.save(relacion);
     }

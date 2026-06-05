@@ -2,6 +2,7 @@ package com.workflow.websocket;
 
 import com.workflow.document.Tramite;
 import com.workflow.dto.*;
+import com.workflow.dto.DocumentoPresenciaMessage;
 import com.workflow.service.FormularioRealtimeService;
 import com.workflow.service.WorkflowService;
 import lombok.RequiredArgsConstructor;
@@ -102,6 +103,32 @@ public class WorkflowWebSocketController {
     public void cambioFormulario(EditorCambioDto dto) {
         mensajeria.convertAndSend(
             "/topic/editor/" + dto.getFlujoId() + "/cambios-form", dto
+        );
+    }
+
+    // ─── Canales de gestión documental ────────────────────────────────────────
+
+    /**
+     * Presencia colaborativa en un documento abierto.
+     * Retransmite la posición del cursor y la acción al resto de usuarios
+     * que tienen el mismo documento abierto.
+     */
+    @MessageMapping("/documento/presencia")
+    public void presenciaDocumento(DocumentoPresenciaMessage mensaje) {
+        mensajeria.convertAndSend(
+            "/topic/documento/" + mensaje.getDocumentoId() + "/presencia", mensaje
+        );
+    }
+
+    /**
+     * Notifica a todos los usuarios de un documento que hubo un cambio
+     * (nueva versión, comentario nuevo, cambio de permiso).
+     * El frontend recarga la lista al recibir este evento.
+     */
+    @MessageMapping("/documento/cambio")
+    public void cambioDocumento(DocumentoPresenciaMessage mensaje) {
+        mensajeria.convertAndSend(
+            "/topic/documento/" + mensaje.getDocumentoId() + "/cambios", mensaje
         );
     }
 }

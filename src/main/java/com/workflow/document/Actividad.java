@@ -15,6 +15,7 @@ public class Actividad {
     private String id;
 
     private String flujoId;
+    private String nombre;
     private String usuarioId;
     private String departamentoId;
 

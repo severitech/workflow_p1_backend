@@ -11,8 +11,4 @@ public interface FlujoRepository extends MongoRepository<Flujo, String> {
 
     /** Todos los flujos de una política ordenados por orden */
     List<Flujo> findByPoliticaIdOrderByOrden(String politicaId);
-
-    /** Siguiente flujo de una política con orden mayor al indicado */
-    java.util.Optional<Flujo> findFirstByPoliticaIdAndOrdenGreaterThanOrderByOrden(
-            String politicaId, int orden);
 }
