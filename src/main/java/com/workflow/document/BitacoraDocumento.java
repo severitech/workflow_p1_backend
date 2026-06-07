@@ -22,6 +22,7 @@ public class BitacoraDocumento {
 
     private String documentoId;
     private String usuarioId;
+    private String nombreUsuario;
 
     /**
      * Tipo de acción:

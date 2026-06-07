@@ -23,6 +23,11 @@ public class UsuarioController {
         return ResponseEntity.status(HttpStatus.CREATED).body(crudServices.crearUsuario(req));
     }
 
+    @GetMapping("/todos")
+    public ResponseEntity<List<UsuarioResponse>> listarTodos() {
+        return ResponseEntity.ok(crudServices.listarTodosUsuarios());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<UsuarioResponse> obtener(@PathVariable String id) {
         return ResponseEntity.ok(crudServices.obtenerUsuario(id));

@@ -14,6 +14,7 @@ public class UsuarioResponse {
     private String apellido;
     private String correo;
     private String rolId;
+    private String nombreRol;
     private String empresaId;
     private String departamentoId;
     private boolean activo;

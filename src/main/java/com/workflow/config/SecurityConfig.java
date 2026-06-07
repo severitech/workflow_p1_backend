@@ -21,6 +21,8 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> {}) // 👈 forma correcta actual
+            // Permite incrustar respuestas (ej. /documentos/archivo/**) en <iframe> del propio frontend
+            .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
             .authorizeHttpRequests(auth -> auth
             .anyRequest().permitAll()
         );

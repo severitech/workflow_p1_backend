@@ -105,6 +105,33 @@ public class AlmacenamientoServicio {
         return clave;
     }
 
+    /** Guarda bytes crudos (para archivos generados programáticamente) */
+    public String guardarBytes(byte[] bytes, String prefijo, String extension) throws IOException {
+        String clave = prefijo + "/" + UUID.randomUUID() + "." + extension;
+        if ("s3".equals(tipoStorage)) {
+            s3Client.putObject(
+                    PutObjectRequest.builder().bucket(bucket).key(clave).build(),
+                    RequestBody.fromBytes(bytes)
+            );
+        } else {
+            Path destino = Paths.get(directorioLocal, clave);
+            Files.createDirectories(destino.getParent());
+            Files.write(destino, bytes);
+        }
+        return clave;
+    }
+
+    /** Lee y devuelve el contenido completo de un archivo como bytes */
+    public byte[] leerBytes(String clave) throws IOException {
+        if ("s3".equals(tipoStorage)) {
+            return s3Client.getObjectAsBytes(
+                    GetObjectRequest.builder().bucket(bucket).key(clave).build()
+            ).asByteArray();
+        } else {
+            return Files.readAllBytes(Paths.get(directorioLocal, clave));
+        }
+    }
+
     private void guardarEnS3(MultipartFile archivo, String clave) throws IOException {
         s3Client.putObject(
                 PutObjectRequest.builder()

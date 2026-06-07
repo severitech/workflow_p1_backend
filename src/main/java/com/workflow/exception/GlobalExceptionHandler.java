@@ -20,6 +20,12 @@ public class GlobalExceptionHandler {
         return construirRespuesta(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    /** Maneja errores de permisos insuficientes → HTTP 403 */
+    @ExceptionHandler(AccesoDenegadoException.class)
+    public ResponseEntity<Map<String, Object>> manejarAccesoDenegado(AccesoDenegadoException ex) {
+        return construirRespuesta(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
     /** Maneja errores de validación Bean Validation → HTTP 400 */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> manejarValidacion(MethodArgumentNotValidException ex) {

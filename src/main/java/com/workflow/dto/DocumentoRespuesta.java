@@ -1,13 +1,12 @@
 package com.workflow.dto;
 
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** DTO de respuesta para operaciones sobre documentos */
-@Data
+@Getter
 @Builder
 public class DocumentoRespuesta {
 
@@ -23,17 +22,14 @@ public class DocumentoRespuesta {
     private LocalDateTime fechaCreacion;
     private boolean activo;
     private String descripcion;
-
-    /** URL temporal para descargar/visualizar el documento */
+    private String politicaId;
+    private String contenido;
+    private boolean esTexto;
     private String urlDescarga;
-
-    /** Permiso del usuario solicitante sobre este documento */
     private String miPermiso;
-
-    /** Historial de versiones anteriores */
     private List<VersionInfo> versionesAnteriores;
 
-    @Data
+    @Getter
     @Builder
     public static class VersionInfo {
         private String version;

@@ -18,4 +18,7 @@ public interface DocumentoRepositorio extends MongoRepository<Documento, String>
 
     /** Documentos de una actividad específica */
     List<Documento> findByActividadIdAndActivoTrue(String actividadId);
+
+    /** Documentos asociados a una política de negocio */
+    List<Documento> findByPoliticaIdAndActivoTrue(String politicaId);
 }

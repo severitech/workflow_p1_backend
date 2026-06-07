@@ -4,17 +4,26 @@ import com.workflow.document.BitacoraDocumento;
 import com.workflow.document.Documento;
 import com.workflow.document.Documento.VersionHistorial;
 import com.workflow.document.PermisoDocumento;
+import com.workflow.dto.CrearDocumentoTextoRequest;
 import com.workflow.dto.DocumentoRespuesta;
+import com.workflow.dto.EditarDocumentoMsg;
 import com.workflow.dto.PermisoDocumentoRequest;
+import com.workflow.exception.AccesoDenegadoException;
 import com.workflow.repository.BitacoraDocumentoRepositorio;
 import com.workflow.repository.DocumentoRepositorio;
 import com.workflow.repository.PermisoDocumentoRepositorio;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +38,12 @@ public class DocumentoServicio {
     private final DocumentoRepositorio documentoRepositorio;
     private final PermisoDocumentoRepositorio permisoRepositorio;
     private final BitacoraDocumentoRepositorio bitacoraRepositorio;
+    private final com.workflow.repository.UsuarioRepository usuarioRepository;
     private final AlmacenamientoServicio almacenamiento;
+    private final SimpMessagingTemplate mensajeria;
+
+    @org.springframework.beans.factory.annotation.Value("${onlyoffice.url-publica}")
+    private String onlyOfficeUrlPublica;
 
     /**
      * Sube un nuevo documento al sistema.
@@ -41,6 +55,7 @@ public class DocumentoServicio {
             String creadoPor,
             String tramiteId,
             String actividadId,
+            String politicaId,
             String descripcion
     ) throws IOException {
 
@@ -54,6 +69,7 @@ public class DocumentoServicio {
                 .empresaId(empresaId)
                 .tramiteId(tramiteId)
                 .actividadId(actividadId)
+                .politicaId(politicaId)
                 .claveAlmacenamiento(clave)
                 .version("1.0")
                 .versionesAnteriores(new ArrayList<>())
@@ -73,7 +89,7 @@ public class DocumentoServicio {
                 .otorgadoPor(creadoPor)
                 .build());
 
-        registrarBitacora(doc.getId(), creadoPor, "subio",
+        registrarBitacora(doc.getId(), creadoPor, creadoPor, "subio",
                 "Subió el documento '" + doc.getNombre() + "' v" + doc.getVersion());
 
         return toRespuesta(doc, "editor");
@@ -114,16 +130,180 @@ public class DocumentoServicio {
 
         doc = documentoRepositorio.save(doc);
 
-        registrarBitacora(doc.getId(), usuarioId, "nueva_version",
+        registrarBitacora(doc.getId(), usuarioId, usuarioId, "nueva_version",
                 "Subió nueva versión " + nuevaVersion + " del documento '" + doc.getNombre() + "'");
 
         String nivel = obtenerNivelPermiso(documentoId, usuarioId);
         return toRespuesta(doc, nivel);
     }
 
+    /** Crea un documento editable generando el archivo .docx/.xlsx real con Apache POI */
+    public DocumentoRespuesta crearDocumentoTexto(CrearDocumentoTextoRequest req) throws IOException {
+        String tipo = req.getTipo() != null ? req.getTipo() : "docx";
+        byte[] bytes = generarArchivoVacio(tipo);
+        String clave = almacenamiento.guardarBytes(bytes, req.getEmpresaId(), tipo);
+
+        Documento doc = Documento.builder()
+                .nombre(req.getNombre())
+                .tipo(tipo)
+                .tamanio(bytes.length)
+                .empresaId(req.getEmpresaId())
+                .politicaId(req.getPoliticaId())
+                .claveAlmacenamiento(clave)
+                .version("1.0")
+                .versionesAnteriores(new ArrayList<>())
+                .creadoPor(req.getCreadoPor())
+                .fechaCreacion(LocalDateTime.now())
+                .activo(true)
+                .descripcion(req.getDescripcion())
+                .esTexto(true)
+                .build();
+
+        doc = documentoRepositorio.save(doc);
+
+        permisoRepositorio.save(PermisoDocumento.builder()
+                .documentoId(doc.getId())
+                .usuarioId(req.getCreadoPor())
+                .nivel("editor")
+                .otorgadoPor(req.getCreadoPor())
+                .build());
+
+        registrarBitacora(doc.getId(), req.getCreadoPor(), req.getCreadoPor(), "creo",
+                "Creó el documento '" + doc.getNombre() + "'");
+
+        return toRespuesta(doc, "editor");
+    }
+
+    /** Devuelve la entidad cruda (sin validar permiso) — usado solo para servir el archivo a OnlyOffice */
+    public Documento obtenerRaw(String documentoId) {
+        return obtenerOLanzar(documentoId);
+    }
+
+    /**
+     * Descarga el archivo actualizado desde OnlyOffice y lo guarda como nueva versión del documento.
+     * Llamado desde el callback de OnlyOffice (status 2 o 6).
+     */
+    public void guardarDesdeOnlyOffice(String documentoId, String urlArchivo, String usuarioId) {
+        try {
+            // OnlyOffice devuelve la URL con su host/IP interno del contenedor,
+            // que no es alcanzable desde este backend — se reemplaza por la URL pública configurada
+            URI original = URI.create(urlArchivo);
+            URI publica = URI.create(onlyOfficeUrlPublica);
+            URI urlDescarga = new URI(publica.getScheme(), null, publica.getHost(), publica.getPort(),
+                    original.getRawPath(), original.getRawQuery(), original.getRawFragment());
+
+            byte[] bytes;
+            try (InputStream in = urlDescarga.toURL().openStream()) {
+                bytes = in.readAllBytes();
+            }
+
+            Documento doc = obtenerOLanzar(documentoId);
+            String nuevaClave = almacenamiento.guardarBytes(bytes, doc.getEmpresaId(), doc.getTipo());
+            doc.setClaveAlmacenamiento(nuevaClave);
+            doc.setTamanio(bytes.length);
+            documentoRepositorio.save(doc);
+
+            log.info("[OnlyOffice] Documento {} actualizado ({} bytes)", documentoId, bytes.length);
+
+            String nombreUsuario = usuarioId;
+            if (usuarioId != null) {
+                nombreUsuario = usuarioRepository.findById(usuarioId)
+                        .map(u -> u.getNombre() + " " + u.getApellido())
+                        .orElse(usuarioId);
+            } else {
+                usuarioId = "onlyoffice";
+                nombreUsuario = "OnlyOffice";
+            }
+
+            registrarBitacora(documentoId, usuarioId, nombreUsuario, "edito",
+                    "Editó el documento desde OnlyOffice — " + bytes.length + " bytes (v" + doc.getVersion() + ")");
+            bitacoraRepositorio.findByDocumentoIdOrderByFechaDesc(documentoId).stream().findFirst().ifPresent(entrada ->
+                    mensajeria.convertAndSend("/topic/documento/" + documentoId + "/bitacora", entrada));
+        } catch (Exception e) {
+            log.error("[OnlyOffice] Error al guardar documento {}: {}", documentoId, e.getMessage());
+        }
+    }
+
+    /** Genera un archivo .docx o .xlsx vacío y válido usando Apache POI */
+    private byte[] generarArchivoVacio(String tipo) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        if ("xlsx".equals(tipo)) {
+            try (XSSFWorkbook wb = new XSSFWorkbook()) {
+                wb.createSheet("Hoja1");
+                wb.write(out);
+            }
+        } else {
+            try (XWPFDocument word = new XWPFDocument()) {
+                word.createParagraph();
+                word.write(out);
+            }
+        }
+        return out.toByteArray();
+    }
+
+    /** Obtiene un documento por ID */
+    public DocumentoRespuesta obtenerDocumento(String documentoId, String usuarioId) {
+        Documento doc = obtenerOLanzar(documentoId);
+        verificarAccesoMinimo(documentoId, usuarioId);
+        String nivel = obtenerNivelPermiso(documentoId, usuarioId);
+        return toRespuesta(doc, nivel);
+    }
+
+    /** Actualiza el contenido de texto de un documento vía REST (para editores) */
+    public DocumentoRespuesta actualizarContenido(String documentoId, String usuarioId, String nombreUsuario, String contenido) {
+        verificarPermiso(documentoId, usuarioId, "editor");
+        Documento doc = obtenerOLanzar(documentoId);
+        doc.setContenido(contenido);
+        doc.setTamanio((long) contenido.length());
+        documentoRepositorio.save(doc);
+
+        registrarBitacora(documentoId, usuarioId, nombreUsuario, "edito",
+                "Editó el documento — " + contenido.length() + " caracteres");
+
+        String nivel = obtenerNivelPermiso(documentoId, usuarioId);
+        return toRespuesta(doc, nivel);
+    }
+
+    /**
+     * Procesa una edición colaborativa vía WebSocket:
+     * guarda el contenido, registra bitácora y hace broadcast.
+     */
+    public void procesarEdicionWs(EditarDocumentoMsg msg) {
+        String documentoId = msg.getDocumentoId();
+        verificarPermiso(documentoId, msg.getUsuarioId(), "editor");
+
+        Documento doc = obtenerOLanzar(documentoId);
+        doc.setContenido(msg.getContenido());
+        doc.setTamanio((long) msg.getContenido().length());
+        documentoRepositorio.save(doc);
+
+        BitacoraDocumento entrada = BitacoraDocumento.builder()
+                .documentoId(documentoId)
+                .usuarioId(msg.getUsuarioId())
+                .nombreUsuario(msg.getNombreUsuario())
+                .accion("edito")
+                .detalle("Editó el documento — " + msg.getContenido().length() + " chars")
+                .fecha(LocalDateTime.now())
+                .build();
+        bitacoraRepositorio.save(entrada);
+
+        // Broadcast contenido a todos los viewers
+        mensajeria.convertAndSend("/topic/documento/" + documentoId + "/contenido", msg);
+        // Broadcast nueva entrada de bitácora
+        mensajeria.convertAndSend("/topic/documento/" + documentoId + "/bitacora", entrada);
+    }
+
     /** Lista documentos de un trámite específico */
     public List<DocumentoRespuesta> listarPorTramite(String tramiteId, String usuarioId) {
         return documentoRepositorio.findByTramiteIdAndActivoTrue(tramiteId)
+                .stream()
+                .map(doc -> toRespuesta(doc, obtenerNivelPermiso(doc.getId(), usuarioId)))
+                .collect(Collectors.toList());
+    }
+
+    /** Lista documentos asociados a una política de negocio */
+    public List<DocumentoRespuesta> listarPorPolitica(String politicaId, String usuarioId) {
+        return documentoRepositorio.findByPoliticaIdAndActivoTrue(politicaId)
                 .stream()
                 .map(doc -> toRespuesta(doc, obtenerNivelPermiso(doc.getId(), usuarioId)))
                 .collect(Collectors.toList());
@@ -142,7 +322,7 @@ public class DocumentoServicio {
         Documento doc = obtenerOLanzar(documentoId);
         verificarAccesoMinimo(documentoId, usuarioId);
 
-        registrarBitacora(documentoId, usuarioId, "descargo",
+        registrarBitacora(documentoId, usuarioId, usuarioId, "descargo",
                 "Descargó el documento '" + doc.getNombre() + "'");
 
         return almacenamiento.generarUrlDescarga(doc.getClaveAlmacenamiento());
@@ -182,8 +362,24 @@ public class DocumentoServicio {
                     .build());
         }
 
-        registrarBitacora(documentoId, solicitanteId, "cambio_permiso",
+        registrarBitacora(documentoId, solicitanteId, solicitanteId, "cambio_permiso",
                 "Asignó permiso '" + req.getNivel() + "' al usuario " + req.getUsuarioId());
+        // Broadcast bitácora update
+        mensajeria.convertAndSend("/topic/documento/" + documentoId + "/bitacora",
+                bitacoraRepositorio.findByDocumentoIdOrderByFechaDesc(documentoId).stream().findFirst().orElse(null));
+    }
+
+    /** Revoca el acceso de un usuario sobre un documento */
+    public void revocarPermiso(String documentoId, String solicitanteId, String usuarioId) {
+        verificarPermiso(documentoId, solicitanteId, "editor");
+
+        permisoRepositorio.findByDocumentoIdAndUsuarioId(documentoId, usuarioId)
+                .ifPresent(permisoRepositorio::delete);
+
+        registrarBitacora(documentoId, solicitanteId, solicitanteId, "cambio_permiso",
+                "Revocó el acceso del usuario " + usuarioId);
+        mensajeria.convertAndSend("/topic/documento/" + documentoId + "/bitacora",
+                bitacoraRepositorio.findByDocumentoIdOrderByFechaDesc(documentoId).stream().findFirst().orElse(null));
     }
 
     /** Lista los permisos de un documento */
@@ -195,7 +391,9 @@ public class DocumentoServicio {
     /** Agrega un comentario a la bitácora */
     public void comentar(String documentoId, String usuarioId, String comentario) {
         verificarAccesoMinimo(documentoId, usuarioId, "comentador");
-        registrarBitacora(documentoId, usuarioId, "comento", comentario);
+        registrarBitacora(documentoId, usuarioId, usuarioId, "comento", comentario);
+        bitacoraRepositorio.findByDocumentoIdOrderByFechaDesc(documentoId).stream().findFirst().ifPresent(entrada ->
+                mensajeria.convertAndSend("/topic/documento/" + documentoId + "/bitacora", entrada));
     }
 
     /** Retorna la bitácora del documento */
@@ -210,7 +408,7 @@ public class DocumentoServicio {
         Documento doc = obtenerOLanzar(documentoId);
         doc.setActivo(false);
         documentoRepositorio.save(doc);
-        registrarBitacora(documentoId, usuarioId, "elimino",
+        registrarBitacora(documentoId, usuarioId, usuarioId, "elimino",
                 "Eliminó el documento '" + doc.getNombre() + "'");
     }
 
@@ -230,7 +428,7 @@ public class DocumentoServicio {
     private void verificarPermiso(String documentoId, String usuarioId, String nivelRequerido) {
         String nivel = obtenerNivelPermiso(documentoId, usuarioId);
         if (!tieneNivelSuficiente(nivel, nivelRequerido)) {
-            throw new RuntimeException("Sin permiso suficiente. Requerido: " + nivelRequerido + ", tienes: " + nivel);
+            throw new AccesoDenegadoException("Sin permiso suficiente. Requerido: " + nivelRequerido + ", tienes: " + nivel);
         }
     }
 
@@ -250,10 +448,11 @@ public class DocumentoServicio {
         return actual >= requerido;
     }
 
-    private void registrarBitacora(String documentoId, String usuarioId, String accion, String detalle) {
+    private void registrarBitacora(String documentoId, String usuarioId, String nombreUsuario, String accion, String detalle) {
         bitacoraRepositorio.save(BitacoraDocumento.builder()
                 .documentoId(documentoId)
                 .usuarioId(usuarioId)
+                .nombreUsuario(nombreUsuario)
                 .accion(accion)
                 .detalle(detalle)
                 .fecha(LocalDateTime.now())
@@ -277,13 +476,19 @@ public class DocumentoServicio {
     }
 
     private DocumentoRespuesta toRespuesta(Documento doc, String nivelPermiso) {
-        List<DocumentoRespuesta.VersionInfo> historial = doc.getVersionesAnteriores().stream()
+        List<Documento.VersionHistorial> versiones = doc.getVersionesAnteriores();
+        if (versiones == null) versiones = new ArrayList<>();
+
+        List<DocumentoRespuesta.VersionInfo> historial = versiones.stream()
                 .map(v -> DocumentoRespuesta.VersionInfo.builder()
                         .version(v.getVersion())
                         .fecha(v.getFecha())
                         .subidoPor(v.getSubidoPor())
                         .build())
                 .collect(Collectors.toList());
+
+        String urlDescarga = (doc.isEsTexto() || doc.getClaveAlmacenamiento() == null || doc.getClaveAlmacenamiento().isEmpty())
+                ? "" : almacenamiento.generarUrlDescarga(doc.getClaveAlmacenamiento());
 
         return DocumentoRespuesta.builder()
                 .id(doc.getId())
@@ -293,12 +498,15 @@ public class DocumentoServicio {
                 .empresaId(doc.getEmpresaId())
                 .tramiteId(doc.getTramiteId())
                 .actividadId(doc.getActividadId())
+                .politicaId(doc.getPoliticaId())
                 .version(doc.getVersion())
                 .creadoPor(doc.getCreadoPor())
                 .fechaCreacion(doc.getFechaCreacion())
                 .activo(doc.isActivo())
                 .descripcion(doc.getDescripcion())
-                .urlDescarga(almacenamiento.generarUrlDescarga(doc.getClaveAlmacenamiento()))
+                .contenido(doc.getContenido())
+                .esTexto(doc.isEsTexto())
+                .urlDescarga(urlDescarga)
                 .miPermiso(nivelPermiso)
                 .versionesAnteriores(historial)
                 .build();

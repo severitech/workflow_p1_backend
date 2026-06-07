@@ -73,6 +73,10 @@ public class CrudServices {
                 .orElseThrow(() -> new WorkflowException("Usuario no encontrado: " + id)));
     }
 
+    public List<UsuarioResponse> listarTodosUsuarios() {
+        return usuarioRepository.findAll().stream().map(this::mapearUsuario).toList();
+    }
+
     public List<UsuarioResponse> listarUsuariosPorEmpresa(String empresaId) {
         return usuarioRepository.findByEmpresaId(empresaId).stream().map(this::mapearUsuario).toList();
     }
@@ -351,9 +355,12 @@ public class CrudServices {
     // ── Util ──────────────────────────────────────────────────────────────────
 
     private UsuarioResponse mapearUsuario(Usuario u) {
+        String nombreRol = rolRepository.findById(u.getRolId())
+                .map(r -> r.getNombre()).orElse("");
         return UsuarioResponse.builder()
                 .id(u.getId()).nombre(u.getNombre()).apellido(u.getApellido())
-                .correo(u.getCorreo()).rolId(u.getRolId()).empresaId(u.getEmpresaId())
+                .correo(u.getCorreo()).rolId(u.getRolId()).nombreRol(nombreRol)
+                .empresaId(u.getEmpresaId())
                 .departamentoId(u.getDepartamentoId()).activo(u.isActivo()).build();
     }
 }

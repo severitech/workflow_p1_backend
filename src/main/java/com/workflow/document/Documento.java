@@ -39,6 +39,9 @@ public class Documento {
     /** Puede ser null */
     private String actividadId;
 
+    /** Política de negocio a la que está asociado este documento (puede ser null) */
+    private String politicaId;
+
     /** Clave de almacenamiento: ruta relativa (local) o key en S3 */
     private String claveAlmacenamiento;
 
@@ -60,6 +63,13 @@ public class Documento {
 
     /** Descripción opcional del documento */
     private String descripcion;
+
+    /** Contenido de texto editable (solo cuando esTexto = true) */
+    private String contenido;
+
+    /** true → documento de texto editable; false → archivo subido */
+    @Builder.Default
+    private boolean esTexto = false;
 
     /** Registro de una versión anterior */
     @Data

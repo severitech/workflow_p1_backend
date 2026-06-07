@@ -3,6 +3,8 @@ package com.workflow.websocket;
 import com.workflow.document.Tramite;
 import com.workflow.dto.*;
 import com.workflow.dto.DocumentoPresenciaMessage;
+import com.workflow.dto.EditarDocumentoMsg;
+import com.workflow.service.DocumentoServicio;
 import com.workflow.service.FormularioRealtimeService;
 import com.workflow.service.WorkflowService;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ public class WorkflowWebSocketController {
 
     private final WorkflowService workflowService;
     private final FormularioRealtimeService formularioRealtimeService;
+    private final DocumentoServicio documentoServicio;
     private final SimpMessagingTemplate mensajeria;
 
     /** Autoguardado campo a campo del formulario */
@@ -123,12 +126,24 @@ public class WorkflowWebSocketController {
     /**
      * Notifica a todos los usuarios de un documento que hubo un cambio
      * (nueva versión, comentario nuevo, cambio de permiso).
-     * El frontend recarga la lista al recibir este evento.
      */
     @MessageMapping("/documento/cambio")
     public void cambioDocumento(DocumentoPresenciaMessage mensaje) {
         mensajeria.convertAndSend(
             "/topic/documento/" + mensaje.getDocumentoId() + "/cambios", mensaje
         );
+    }
+
+    /**
+     * Edición colaborativa en tiempo real de un documento de texto.
+     * Guarda el contenido, registra bitácora y hace broadcast a todos los viewers.
+     */
+    @MessageMapping("/documento/editar")
+    public void editarDocumento(EditarDocumentoMsg msg) {
+        try {
+            documentoServicio.procesarEdicionWs(msg);
+        } catch (Exception e) {
+            // Sin permiso o documento no encontrado — no hacer broadcast
+        }
     }
 }
