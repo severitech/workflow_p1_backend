@@ -14,6 +14,9 @@ public class CursorEditorDto {
     private String usuarioId;
     private String nombre;
     private String color;
+    /** Posición del mouse relativa al lienzo del editor */
+    private Double x;
+    private Double y;
     /** moviendo | editando-campo | saliendo */
     private String accion;
     /** ID del flujo sobre el que está el cursor */
