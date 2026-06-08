@@ -8,7 +8,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -25,6 +27,8 @@ public class WorkflowService {
     private final NotificacionRepository notificacionRepository;
     private final SimpMessagingTemplate mensajeria;
     private final UsuarioRepository usuarioRepository;
+    private final EmpresaRepository empresaRepository;
+    private final AlmacenamientoServicio almacenamientoServicio;
 
     /** Crea un nuevo trámite a partir de una política, cliente, recepcionista y prioridad */
     public Tramite iniciarTramite(String politicaId, String clienteId, String recepcionistaId, String empresaId, String prioridad) {
@@ -349,6 +353,64 @@ public class WorkflowService {
 
         tramiteRepository.save(tramite);
         return datoActualizado;
+    }
+
+    /**
+     * Sube un archivo (de cualquier tipo) para un campo de tipo "archivo" del formulario
+     * de una actividad y lo guarda como valor del DatoForm correspondiente.
+     * Se almacena en S3 (o local en dev) organizado como:
+     *   {empresa}/clientes/{cliente}/{política}/...
+     * de modo que cada cliente tiene su carpeta, y dentro una subcarpeta por cada
+     * trámite (identificado por el nombre de la política de negocio que lo originó).
+     * Devuelve el DatoForm actualizado con la clave de almacenamiento como valor.
+     */
+    public DatoForm subirArchivoCampoFormulario(String tramiteId, String actividadId,
+                                                 String componenteId, String etiqueta,
+                                                 MultipartFile archivo) {
+        if (archivo == null || archivo.isEmpty()) {
+            throw new WorkflowException("El archivo está vacío");
+        }
+
+        Tramite tramite = obtenerTramite(tramiteId);
+        String prefijo = construirRutaTramite(tramite);
+
+        String clave;
+        try {
+            clave = almacenamientoServicio.guardar(archivo, prefijo);
+        } catch (IOException e) {
+            throw new WorkflowException("No se pudo guardar el archivo: " + e.getMessage());
+        }
+
+        DatoForm dato = guardarCampoFormulario(tramiteId, actividadId, componenteId, etiqueta, clave);
+        log.info("[Workflow] Archivo subido para trámite {} / actividad {} / campo {}: {}",
+                tramiteId, actividadId, componenteId, clave);
+        return dato;
+    }
+
+    /**
+     * Construye la ruta de almacenamiento de un trámite:
+     *   {nombreEmpresa}/clientes/{nombreCliente}/{nombrePolitica}
+     */
+    private String construirRutaTramite(Tramite tramite) {
+        String nombreEmpresa = empresaRepository.findById(tramite.getEmpresaId())
+                .map(Empresa::getNombre).orElse(tramite.getEmpresaId());
+        String nombreCliente = usuarioRepository.findById(tramite.getClienteId())
+                .map(u -> u.getNombre() + " " + u.getApellido()).orElse(tramite.getClienteId());
+        String nombrePolitica = politicaRepository.findById(tramite.getPoliticaId())
+                .map(PoliticaNegocio::getNombre).orElse(tramite.getPoliticaId());
+
+        return sanearRuta(nombreEmpresa) + "/clientes/" + sanearRuta(nombreCliente) + "/" + sanearRuta(nombrePolitica);
+    }
+
+    /** Reemplaza caracteres no válidos para una ruta/clave de S3 (barras, espacios extra, etc.) */
+    private String sanearRuta(String segmento) {
+        if (segmento == null || segmento.isBlank()) return "sin-nombre";
+        return segmento.trim().replaceAll("[/\\\\]+", "-").replaceAll("\\s+", " ");
+    }
+
+    /** Genera la URL de descarga del archivo asociado a un valor (clave de almacenamiento) */
+    public String generarUrlArchivo(String clave) {
+        return almacenamientoServicio.generarUrlDescarga(clave);
     }
 
     /** Agrega una observación a un campo del formulario de una actividad */

@@ -39,11 +39,35 @@ public class DocumentoServicio {
     private final PermisoDocumentoRepositorio permisoRepositorio;
     private final BitacoraDocumentoRepositorio bitacoraRepositorio;
     private final com.workflow.repository.UsuarioRepository usuarioRepository;
+    private final com.workflow.repository.EmpresaRepository empresaRepository;
+    private final com.workflow.repository.PoliticaNegocioRepository politicaRepository;
     private final AlmacenamientoServicio almacenamiento;
     private final SimpMessagingTemplate mensajeria;
 
     @org.springframework.beans.factory.annotation.Value("${onlyoffice.url-publica}")
     private String onlyOfficeUrlPublica;
+
+    /**
+     * Construye la ruta de almacenamiento de un documento de política/workflow:
+     *   {nombreEmpresa}/workflow/{nombrePolitica}
+     * Si el documento no está asociado a una política, se usa "general".
+     */
+    private String construirRutaWorkflow(String empresaId, String politicaId) {
+        String nombreEmpresa = empresaRepository.findById(empresaId)
+                .map(com.workflow.document.Empresa::getNombre).orElse(empresaId);
+        String nombrePolitica = (politicaId == null || politicaId.isBlank())
+                ? "general"
+                : politicaRepository.findById(politicaId)
+                        .map(com.workflow.document.PoliticaNegocio::getNombre).orElse(politicaId);
+
+        return sanearRuta(nombreEmpresa) + "/workflow/" + sanearRuta(nombrePolitica);
+    }
+
+    /** Reemplaza caracteres no válidos para una ruta/clave de S3 (barras, espacios extra, etc.) */
+    private String sanearRuta(String segmento) {
+        if (segmento == null || segmento.isBlank()) return "sin-nombre";
+        return segmento.trim().replaceAll("[/\\\\]+", "-").replaceAll("\\s+", " ");
+    }
 
     /**
      * Sube un nuevo documento al sistema.
@@ -60,7 +84,7 @@ public class DocumentoServicio {
     ) throws IOException {
 
         String tipo = obtenerTipo(archivo.getOriginalFilename());
-        String clave = almacenamiento.guardar(archivo, empresaId);
+        String clave = almacenamiento.guardar(archivo, construirRutaWorkflow(empresaId, politicaId));
 
         Documento doc = Documento.builder()
                 .nombre(archivo.getOriginalFilename())
@@ -120,7 +144,7 @@ public class DocumentoServicio {
 
         // Calcula el siguiente número de versión
         String nuevaVersion = incrementarVersion(doc.getVersion());
-        String nuevaClave = almacenamiento.guardar(archivo, doc.getEmpresaId());
+        String nuevaClave = almacenamiento.guardar(archivo, construirRutaWorkflow(doc.getEmpresaId(), doc.getPoliticaId()));
 
         doc.setVersion(nuevaVersion);
         doc.setClaveAlmacenamiento(nuevaClave);
@@ -141,7 +165,7 @@ public class DocumentoServicio {
     public DocumentoRespuesta crearDocumentoTexto(CrearDocumentoTextoRequest req) throws IOException {
         String tipo = req.getTipo() != null ? req.getTipo() : "docx";
         byte[] bytes = generarArchivoVacio(tipo);
-        String clave = almacenamiento.guardarBytes(bytes, req.getEmpresaId(), tipo);
+        String clave = almacenamiento.guardarBytes(bytes, construirRutaWorkflow(req.getEmpresaId(), req.getPoliticaId()), tipo);
 
         Documento doc = Documento.builder()
                 .nombre(req.getNombre())
@@ -198,7 +222,7 @@ public class DocumentoServicio {
             }
 
             Documento doc = obtenerOLanzar(documentoId);
-            String nuevaClave = almacenamiento.guardarBytes(bytes, doc.getEmpresaId(), doc.getTipo());
+            String nuevaClave = almacenamiento.guardarBytes(bytes, construirRutaWorkflow(doc.getEmpresaId(), doc.getPoliticaId()), doc.getTipo());
             doc.setClaveAlmacenamiento(nuevaClave);
             doc.setTamanio(bytes.length);
             documentoRepositorio.save(doc);
