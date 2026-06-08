@@ -55,26 +55,42 @@ Recomendado: Render / Railway / Fly.io (HTTPS gratis automático). Ver
 `GROQ_API_KEY`, `MONGO_URI`, `MONGO_DB`, `SPRING_API_URL` (actualizar luego con
 la URL real del backend en AWS), `PORT`.
 
-### B. Desplegar el backend Spring Boot en AWS (con S3)
-Seguir `DESPLIEGUE_AWS.md`:
-1. Crear bucket S3 (privado, con CORS) — **en proceso, el usuario ya estaba
-   creando el bucket `workflow-documentos-sw1` en `us-east-1`**.
-2. Crear usuario IAM con permisos solo sobre ese bucket (Access Key + Secret).
-3. Lanzar instancia EC2 Free Tier (`t2.micro`/`t3.micro`) con Elastic IP,
-   abrir puertos 22/80/443, instalar Docker.
-4. Apuntar un dominio/subdominio a la Elastic IP.
-5. Levantar Caddy (o Nginx + Certbot) para HTTPS automático con Let's Encrypt.
-6. Configurar variables de entorno en la instancia (usar perfil `prod`):
-   ```
-   SPRING_PROFILES_ACTIVE=prod
-   STORAGE_TIPO=s3
-   AWS_S3_BUCKET=workflow-documentos-sw1
-   AWS_REGION=us-east-1
-   AWS_ACCESS_KEY_ID=...
-   AWS_SECRET_ACCESS_KEY=...
-   MONGODB_URI=mongodb+srv://padilladouglas6_db_user:etLbm3AFS9OdPKap@cluster0.djqhv0m.mongodb.net/workflow_db?appName=Cluster0&retryWrites=true&w=majority
-   ```
-7. Desplegar con `docker compose --env-file .env up -d --build`.
+### B. Desplegar el backend Spring Boot en AWS (con S3) — ✅ CASI LISTO
+1. ✅ Bucket S3 creado: `workflow-documentos-382284571866-us-east-1-an` (us-east-1,
+   privado, CORS configurado para `localhost:4200` y `*.onrender.com`).
+2. ✅ Usuario IAM `workflow-backend-s3` creado con política de solo este bucket
+   (`workflow-backend-s3-policy`). Access Key generado y guardado en
+   `D:\Douglas\UAGRM\SW1\Spring Boot Prueba\csvAWS\workflow-backend-s3_accessKeys.csv`.
+3. ✅ Instancia EC2 lanzada: `workflow-backend` (`i-02f66df62eba425b1`,
+   Ubuntu 26.04 LTS, t3.micro, Free Tier). Par de claves:
+   `D:\Douglas\UAGRM\SW1\Spring Boot Prueba\csvAWS\workflow-backend-key.pem`.
+   Grupo de seguridad: SSH abierto a `0.0.0.0/0` (a propósito, para presentación),
+   HTTP/HTTPS abiertos a `0.0.0.0/0`.
+4. ✅ Elastic IP asignada y asociada: **`52.5.41.137`**.
+5. ✅ Docker + docker-compose-plugin instalados en la instancia.
+6. ✅ Dominio gratuito creado en No-IP (DuckDNS estaba caído):
+   **`workflow-severitech.redirectme.net`** → apunta a `52.5.41.137`
+   (cuenta gratis = solo 1 hostname; recordar reconfirmar cada 30 días).
+7. ✅ Repo clonado en el servidor (`~/workflow-deploy/backend`, repo puesto en
+   público para poder clonar sin token).
+8. ✅ Creados en el servidor (`~/workflow-deploy/`):
+   - `Caddyfile` — sirve `workflow-severitech.redirectme.net`, enruta
+     `/onlyoffice/*` → contenedor OnlyOffice (sin subdominio, por la limitación
+     de 1 hostname gratis en No-IP) y el resto → backend:8080. Caddy gestiona
+     HTTPS automático con Let's Encrypt.
+   - `docker-compose.yml` — 3 servicios: `backend` (build desde `./backend`),
+     `onlyoffice` (imagen oficial `onlyoffice/documentserver`), `caddy`
+     (proxy + TLS, puertos 80/443).
+   - `.env` — variables de producción (perfil `prod`, Mongo Atlas, S3, CORS,
+     `ONLYOFFICE_URL_PUBLICA=https://workflow-severitech.redirectme.net/onlyoffice`).
+     **Se generó un JWT_SECRET nuevo** (rotado) para no reusar el que estuvo
+     expuesto en git. Permisos `chmod 600`.
+9. ⏳ EN PROCESO: `docker compose up -d --build` corriendo en background en el
+   servidor (compila el backend con Gradle + descarga imagen de OnlyOffice,
+   tarda varios minutos).
+10. ⏳ Pendiente verificar: `https://workflow-severitech.redirectme.net` responde,
+    certificado SSL válido, login funciona, subida de documentos a S3 funciona,
+    OnlyOffice carga en `/onlyoffice/`.
 
 ### C. Desplegar el frontend Angular
 Render/Vercel/Netlify/Cloudflare Pages — ver `frontend_p1/DESPLIEGUE.md`.
