@@ -53,6 +53,9 @@ dependencies {
 
     // Exportación Excel — reportes dinámicos (Feature 2)
     implementation 'org.apache.poi:poi-ooxml:5.2.3'
+
+    // Firebase Admin SDK — notificaciones push FCM
+    implementation 'com.google.firebase:firebase-admin:9.2.0'
 }
 
 tasks.named('test') {

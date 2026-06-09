@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 import java.util.List;
 
 @RestController
@@ -53,5 +55,14 @@ public class UsuarioController {
     public ResponseEntity<Void> eliminar(@PathVariable String id) {
         crudServices.eliminarUsuario(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Registra o actualiza el token FCM del dispositivo del usuario */
+    @PatchMapping("/{id}/token-push")
+    public ResponseEntity<Void> registrarTokenPush(
+            @PathVariable String id,
+            @RequestBody Map<String, String> body) {
+        crudServices.registrarTokenPush(id, body.get("tokenPush"));
+        return ResponseEntity.ok().build();
     }
 }

@@ -26,6 +26,7 @@ public class CrudServices {
     private final NotificacionRepository notificacionRepository;
     private final PasswordEncoder encoderPassword;
     private final SimpMessagingTemplate mensajeria;
+    private final FcmServicio fcmServicio;
 
     // ── Empresas ─────────────────────────────────────────────────────────────
 
@@ -100,20 +101,30 @@ public class CrudServices {
         if (req.getRolId() != null && !req.getRolId().equals(rolAnteriorId)) {
             String nombreNuevoRol = rolRepository.findById(req.getRolId())
                     .map(r -> r.getNombre()).orElse(req.getRolId());
+            String mensajeRol = "Tu rol ha sido actualizado. Ahora eres " + nombreNuevoRol + ".";
             Notificacion notif = Notificacion.builder()
                     .usuarioId(id)
                     .tipo("cambio_rol")
-                    .mensaje("Tu rol ha sido actualizado. Ahora eres " + nombreNuevoRol + ".")
+                    .mensaje(mensajeRol)
                     .leida(false)
                     .build();
             notificacionRepository.save(notif);
             mensajeria.convertAndSend("/queue/notificaciones/" + id, notif);
+            fcmServicio.enviar(guardado.getTokenPush(), "Cambio de rol", mensajeRol);
         }
 
         return mapearUsuario(guardado);
     }
 
     public void eliminarUsuario(String id) { usuarioRepository.deleteById(id); }
+
+    /** Guarda el token FCM del dispositivo para recibir notificaciones push */
+    public void registrarTokenPush(String usuarioId, String token) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new WorkflowException("Usuario no encontrado: " + usuarioId));
+        usuario.setTokenPush(token);
+        usuarioRepository.save(usuario);
+    }
 
     // ── Formularios ───────────────────────────────────────────────────────────
 
@@ -364,6 +375,15 @@ public class CrudServices {
         notificaciones.forEach(n ->
                 mensajeria.convertAndSend("/queue/notificaciones/" + n.getUsuarioId(), n)
         );
+
+        // Push FCM a cada usuario con token registrado
+        Map<String, String> tokensMap = usuarios.stream()
+                .filter(u -> u.getTokenPush() != null && !u.getTokenPush().isBlank())
+                .collect(java.util.stream.Collectors.toMap(Usuario::getId, Usuario::getTokenPush));
+        notificaciones.forEach(n -> {
+            String tkn = tokensMap.get(n.getUsuarioId());
+            if (tkn != null) fcmServicio.enviar(tkn, "Notificación", n.getMensaje());
+        });
 
         return notificaciones.size();
     }

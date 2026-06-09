@@ -35,6 +35,9 @@ public class Usuario {
     private String departamentoId;
     private boolean activo;
 
+    /** Token FCM del dispositivo para notificaciones push */
+    private String tokenPush;
+
     @CreatedDate
     private LocalDateTime fechaCreacion;
 
