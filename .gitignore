@@ -38,3 +38,4 @@ out/
 
 # Variables de entorno con secretos
 .env
+firebase-service-account.json

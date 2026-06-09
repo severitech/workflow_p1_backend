@@ -9,8 +9,10 @@ import com.workflow.dto.DocumentoRespuesta;
 import com.workflow.dto.EditarDocumentoMsg;
 import com.workflow.dto.PermisoDocumentoRequest;
 import com.workflow.exception.AccesoDenegadoException;
+import com.workflow.document.Notificacion;
 import com.workflow.repository.BitacoraDocumentoRepositorio;
 import com.workflow.repository.DocumentoRepositorio;
+import com.workflow.repository.NotificacionRepository;
 import com.workflow.repository.PermisoDocumentoRepositorio;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +45,7 @@ public class DocumentoServicio {
     private final com.workflow.repository.PoliticaNegocioRepository politicaRepository;
     private final AlmacenamientoServicio almacenamiento;
     private final SimpMessagingTemplate mensajeria;
+    private final NotificacionRepository notificacionRepository;
 
     @org.springframework.beans.factory.annotation.Value("${onlyoffice.url-publica}")
     private String onlyOfficeUrlPublica;
@@ -388,15 +391,33 @@ public class DocumentoServicio {
 
         registrarBitacora(documentoId, solicitanteId, solicitanteId, "cambio_permiso",
                 "Asignó permiso '" + req.getNivel() + "' al usuario " + req.getUsuarioId());
-        // Broadcast bitácora update
         mensajeria.convertAndSend("/topic/documento/" + documentoId + "/bitacora",
                 bitacoraRepositorio.findByDocumentoIdOrderByFechaDesc(documentoId).stream().findFirst().orElse(null));
+
+        Documento doc = obtenerOLanzar(documentoId);
+        String etiquetaNivel = switch (req.getNivel()) {
+            case "editor"      -> "editor";
+            case "comentador"  -> "comentador";
+            case "visualizador"-> "lector";
+            default            -> req.getNivel();
+        };
+        String mensajeNotif = "Se te asignó acceso al documento \"" + doc.getNombre()
+                + "\". Ahora eres " + etiquetaNivel + ".";
+        Notificacion notif = Notificacion.builder()
+                .usuarioId(req.getUsuarioId())
+                .tipo("permiso_documento")
+                .mensaje(mensajeNotif)
+                .leida(false)
+                .build();
+        notificacionRepository.save(notif);
+        mensajeria.convertAndSend("/queue/notificaciones/" + req.getUsuarioId(), notif);
     }
 
     /** Revoca el acceso de un usuario sobre un documento */
     public void revocarPermiso(String documentoId, String solicitanteId, String usuarioId) {
         verificarPermiso(documentoId, solicitanteId, "editor");
 
+        Documento doc = obtenerOLanzar(documentoId);
         permisoRepositorio.findByDocumentoIdAndUsuarioId(documentoId, usuarioId)
                 .ifPresent(permisoRepositorio::delete);
 
@@ -404,6 +425,16 @@ public class DocumentoServicio {
                 "Revocó el acceso del usuario " + usuarioId);
         mensajeria.convertAndSend("/topic/documento/" + documentoId + "/bitacora",
                 bitacoraRepositorio.findByDocumentoIdOrderByFechaDesc(documentoId).stream().findFirst().orElse(null));
+
+        String mensajeRevocado = "Tu acceso al documento \"" + doc.getNombre() + "\" fue revocado.";
+        Notificacion notifRevocado = Notificacion.builder()
+                .usuarioId(usuarioId)
+                .tipo("permiso_documento")
+                .mensaje(mensajeRevocado)
+                .leida(false)
+                .build();
+        notificacionRepository.save(notifRevocado);
+        mensajeria.convertAndSend("/queue/notificaciones/" + usuarioId, notifRevocado);
     }
 
     /** Lista los permisos de un documento */

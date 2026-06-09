@@ -92,9 +92,25 @@ public class CrudServices {
     public UsuarioResponse actualizarUsuario(String id, UsuarioRequest req) {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new WorkflowException("Usuario no encontrado: " + id));
+        String rolAnteriorId = usuario.getRolId();
         usuario.setNombre(req.getNombre()); usuario.setApellido(req.getApellido());
         usuario.setRolId(req.getRolId()); usuario.setDepartamentoId(req.getDepartamentoId());
-        return mapearUsuario(usuarioRepository.save(usuario));
+        Usuario guardado = usuarioRepository.save(usuario);
+
+        if (req.getRolId() != null && !req.getRolId().equals(rolAnteriorId)) {
+            String nombreNuevoRol = rolRepository.findById(req.getRolId())
+                    .map(r -> r.getNombre()).orElse(req.getRolId());
+            Notificacion notif = Notificacion.builder()
+                    .usuarioId(id)
+                    .tipo("cambio_rol")
+                    .mensaje("Tu rol ha sido actualizado. Ahora eres " + nombreNuevoRol + ".")
+                    .leida(false)
+                    .build();
+            notificacionRepository.save(notif);
+            mensajeria.convertAndSend("/queue/notificaciones/" + id, notif);
+        }
+
+        return mapearUsuario(guardado);
     }
 
     public void eliminarUsuario(String id) { usuarioRepository.deleteById(id); }
