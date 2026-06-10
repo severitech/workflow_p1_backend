@@ -357,9 +357,16 @@ public class CrudServices {
      * Retorna la cantidad de notificaciones enviadas.
      */
     public int broadcast(String empresaId, String rolId, String mensaje) {
-        List<Usuario> usuarios = (rolId != null && !rolId.isBlank())
-                ? usuarioRepository.findByEmpresaIdAndRolId(empresaId, rolId)
-                : usuarioRepository.findByEmpresaIdAndActivoTrue(empresaId);
+        List<Usuario> usuarios;
+        if (rolId != null && !rolId.isBlank()) {
+            // Acepta tanto el id real del rol como su nombre (ej. "administrador")
+            String idRolReal = rolRepository.findById(rolId)
+                    .map(r -> r.getId())
+                    .orElseGet(() -> rolRepository.findByNombre(rolId).map(r -> r.getId()).orElse(rolId));
+            usuarios = usuarioRepository.findByEmpresaIdAndRolId(empresaId, idRolReal);
+        } else {
+            usuarios = usuarioRepository.findByEmpresaIdAndActivoTrue(empresaId);
+        }
 
         List<Notificacion> notificaciones = usuarios.stream().map(u ->
                 Notificacion.builder()
