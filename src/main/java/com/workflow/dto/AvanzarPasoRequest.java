@@ -4,7 +4,6 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 import java.util.List;
-import java.util.Map;
 
 @Data
 @Builder
@@ -20,6 +19,6 @@ public class AvanzarPasoRequest {
 
     private String observacion;
 
-    /** Lista de pares {componenteId, etiqueta, valor} del formulario */
-    private List<Map<String, String>> datosForm;
+    /** Lista de valores {componenteId, etiqueta, valor u opcionalmente filas} del formulario */
+    private List<DatoFormularioRequest> datosForm;
 }

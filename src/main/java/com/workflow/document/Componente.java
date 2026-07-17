@@ -22,4 +22,7 @@ public class Componente {
 
     /** Opciones para componentes de tipo select */
     private java.util.List<String> opciones;
+
+    /** Nombres de columna, solo para componentes de tipo tabla */
+    private java.util.List<String> columnas;
 }

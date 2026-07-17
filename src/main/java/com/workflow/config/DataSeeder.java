@@ -63,7 +63,7 @@ public class DataSeeder implements CommandLineRunner {
     private static final String TC_SELECT    = "tc_003";
     private static final String TC_BOOLEAN   = "tc_004";
     private static final String TC_FECHA     = "tc_005";
-    private static final String TC_ARCHIVO   = "tc_006";
+    private static final String TC_TABLA     = "tc_006";
     private static final String TC_NUMERO    = "tc_007";
     private static final String FORM_DATOS   = "form_001";
     private static final String FORM_CREDITO = "form_002";
@@ -182,7 +182,7 @@ public class DataSeeder implements CommandLineRunner {
                 tc(TC_SELECT,   "select",   "Lista desplegable"),
                 tc(TC_BOOLEAN,  "boolean",  "Casilla verdadero/falso"),
                 tc(TC_FECHA,    "fecha",    "Selector de fecha"),
-                tc(TC_ARCHIVO,  "archivo",  "Carga de archivo"),
+                tc(TC_TABLA,    "tabla",    "Tabla editable de filas y columnas"),
                 tc(TC_NUMERO,   "numero",   "Campo numérico")
         ));
 
@@ -211,7 +211,7 @@ public class DataSeeder implements CommandLineRunner {
                 Formulario.builder().id(FORM_CIERRE).nombre("Cierre de trámite")
                         .descripcion("Documentación final").empresaId(EMP1).activo(true)
                         .componentes(List.of(
-                                cmp(CMP_DOC, TC_ARCHIVO, "Documento de cierre", "", 1, true, null)
+                                cmp(CMP_DOC, TC_TABLA, "Documentos entregados", "", 1, true, null)
                         )).build(),
                 Formulario.builder().id(FORM_MEDIDOR).nombre("Solicitud de medidor")
                         .descripcion("Datos para instalación de medidor eléctrico").empresaId(EMP1).activo(true)
@@ -766,10 +766,14 @@ public class DataSeeder implements CommandLineRunner {
         return TipoComponente.builder().id(id).nombre(nombre).descripcion(desc).build();
     }
 
+    /** Distribuye los componentes en 2 columnas dentro del lienzo (0..900px) para que el editor visual arranque con un layout legible */
     private Componente cmp(String id, String tipoId, String etiqueta, String placeholder,
                            int orden, boolean requerido, List<String> opciones) {
+        int fila = (orden - 1) / 2;
+        int columna = (orden - 1) % 2;
         return Componente.builder().id(id).tipoId(tipoId).etiqueta(etiqueta)
-                .placeholder(placeholder).orden(orden).posicionX(0).posicionY(orden - 1)
+                .placeholder(placeholder).orden(orden)
+                .posicionX(columna * 340 + 20).posicionY(fila * 160 + 20)
                 .requerido(requerido).opciones(opciones).build();
     }
 

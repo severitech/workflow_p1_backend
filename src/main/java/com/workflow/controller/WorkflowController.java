@@ -1,6 +1,5 @@
 package com.workflow.controller;
 
-import com.workflow.document.DatoForm;
 import com.workflow.document.Tramite;
 import com.workflow.dto.AvanzarPasoRequest;
 import com.workflow.dto.IniciarTramiteRequest;
@@ -9,13 +8,10 @@ import com.workflow.service.WorkflowService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -37,27 +33,6 @@ public class WorkflowController {
                                             @Valid @RequestBody AvanzarPasoRequest req) {
         return ResponseEntity.ok(workflowService.avanzarPaso(
                 tramiteId, req.getActividadId(), req.getUsuarioId(), req.getObservacion(), req.getDatosForm()));
-    }
-
-    /**
-     * Sube un archivo (cualquier tipo: pdf, imagen, word, etc.) para un campo de tipo
-     * "archivo" del formulario de una actividad. Se guarda en S3 dentro de la carpeta
-     * "tramites/{tramiteId}/", y la clave resultante queda como valor del campo.
-     */
-    @PostMapping(value = "/{tramiteId}/actividad/{actividadId}/archivo",
-            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Map<String, Object>> subirArchivoCampo(
-            @PathVariable String tramiteId,
-            @PathVariable String actividadId,
-            @RequestParam("archivo") MultipartFile archivo,
-            @RequestParam("componenteId") String componenteId,
-            @RequestParam("etiqueta") String etiqueta) {
-        DatoForm dato = workflowService.subirArchivoCampoFormulario(
-                tramiteId, actividadId, componenteId, etiqueta, archivo);
-        return ResponseEntity.ok(Map.of(
-                "dato", dato,
-                "urlDescarga", workflowService.generarUrlArchivo(dato.getValor())
-        ));
     }
 
     @PostMapping("/{tramiteId}/observar")

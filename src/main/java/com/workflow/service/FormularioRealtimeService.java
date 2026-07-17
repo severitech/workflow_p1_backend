@@ -25,9 +25,10 @@ public class FormularioRealtimeService {
 
     /** Guarda el campo en MongoDB, emite el dato actualizado y notifica a los involucrados */
     public void procesarCampo(String tramiteId, String actividadId,
-                               String componenteId, String etiqueta, String valor, String usuarioId) {
+                               String componenteId, String etiqueta, String valor,
+                               List<Map<String, String>> filas, String usuarioId) {
         DatoForm datoActualizado = workflowService.guardarCampoFormulario(
-                tramiteId, actividadId, componenteId, etiqueta, valor);
+                tramiteId, actividadId, componenteId, etiqueta, valor, filas);
 
         mensajeria.convertAndSend(
                 "/topic/tramite/" + tramiteId + "/formulario",

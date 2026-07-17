@@ -30,7 +30,7 @@ public class WorkflowWebSocketController {
         formularioRealtimeService.procesarCampo(
                 mensaje.getTramiteId(), mensaje.getActividadId(),
                 mensaje.getComponenteId(), mensaje.getEtiqueta(),
-                mensaje.getValor(), mensaje.getUsuarioId()
+                mensaje.getValor(), mensaje.getFilas(), mensaje.getUsuarioId()
         );
     }
 
@@ -99,13 +99,13 @@ public class WorkflowWebSocketController {
     }
 
     /**
-     * Broadcast de cambios en componentes de un formulario específico.
+     * Broadcast de cambios de componentes de formulario (mover, crear, editar, eliminar).
      * Solo los usuarios con ese formulario abierto reciben el cambio.
      */
     @MessageMapping("/editor/cambio-formulario")
     public void cambioFormulario(EditorCambioDto dto) {
         mensajeria.convertAndSend(
-            "/topic/editor/" + dto.getFlujoId() + "/cambios-form", dto
+            "/topic/editor/" + dto.getFormularioId() + "/cambios-form", dto
         );
     }
 

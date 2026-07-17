@@ -16,7 +16,7 @@ public class TipoComponente {
     @Id
     private String id;
 
-    /** Valores posibles: texto, textarea, select, boolean, fecha, archivo, numero */
+    /** Valores posibles: texto, textarea, select, boolean, fecha, tabla, numero */
     private String nombre;
     private String descripcion;
 

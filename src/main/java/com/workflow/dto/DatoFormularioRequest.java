@@ -1,16 +1,16 @@
-package com.workflow.document;
+package com.workflow.dto;
 
 import lombok.*;
 
 import java.util.List;
 import java.util.Map;
 
-/** Embebido en DatosClienteForm — valor de un campo del formulario */
+/** Valor enviado por el cliente al avanzar un paso, para un componente del formulario */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class DatoForm {
+public class DatoFormularioRequest {
 
     private String componenteId;
     private String etiqueta;
